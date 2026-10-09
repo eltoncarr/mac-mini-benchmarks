@@ -147,9 +147,12 @@ start_quality_server() {
 
 suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
   local depths="$1" full="$2" m
+  # Thinking off at the server, so every request (incl. llama-benchy's warmup and
+  # coherence check, which don't get --extra-body) answers directly.
+  local nothink=(--chat-template-kwargs '{"enable_thinking": false}')
   [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
   for m in $MODELS_SEL; do
-    if start_model_server "$m" plain 0 -c "$SERVER_CTX" -np 1; then
+    if start_model_server "$m" plain 0 -c "$SERVER_CTX" -np 1 "${nothink[@]}"; then
       start_power "$RUN/power/server-$m.txt"
       run_benchy "llama.cpp-$m" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
       run_latency "llama.cpp-$m" "$SERVER_PORT" "$MODEL_NAME"
@@ -160,7 +163,7 @@ suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
       fi
       stop_pid "$SERVER_PID"; SERVER_PID=""
     fi
-    if start_model_server "$m" mtp 1 -c "$SERVER_CTX" -np 1; then
+    if start_model_server "$m" mtp 1 -c "$SERVER_CTX" -np 1 "${nothink[@]}"; then
       start_power "$RUN/power/server-$m-mtp.txt"
       run_benchy "llama.cpp-$m-mtp" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
       run_latency "llama.cpp-$m-mtp" "$SERVER_PORT" "$MODEL_NAME"
@@ -168,7 +171,7 @@ suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
     fi
     if [[ $full == 1 ]]; then
       local np; np="$(echo "$CONCURRENCY_LEVELS" | tr ' ' '\n' | sort -n | tail -n1)"
-      if start_model_server "$m" "np$np" 0 -c $((np * 16384)) -np "$np"; then
+      if start_model_server "$m" "np$np" 0 -c $((np * 16384)) -np "$np" "${nothink[@]}"; then
         # shellcheck disable=SC2086
         run_benchy "llama.cpp-$m-concurrency" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "0 4096" \
           --no-cache --concurrency $CONCURRENCY_LEVELS

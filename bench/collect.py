@@ -255,24 +255,29 @@ def comparison(S, env):
             if not b.get("context_size") and b.get("concurrency", 1) == 1 and b.get("e2e_ttft"):
                 return b["e2e_ttft"]["mean"]
 
+    def chat_tps(label):
+        return ((S.get("server") or {}).get(label) or {}).get("decode_tps")
+
     sizes = {m["label"]: m["bytes"] / 2**30 for m in env.get("models", [])}
     # deepest context that every model was measured at (runs can use different sweeps)
     per_model = [{r["n_depth"] for r in S.get("llama_bench", []) if r["model"] == m} for m in models]
     common = set.intersection(*per_model) if all(per_model) else set()
     depth = max(common or {0})
     md = ["## Comparison", "",
-          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | API tg | API tg MTP | API TTFT ms | HumanEval+ | SWE-bench |",
-          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | chat tg | chat tg MTP | API tg | API tg MTP | API TTFT ms | HumanEval+ | SWE-bench |",
+          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in models:
         ev = (S.get("evalplus", {}).get(m) or {}).get("humaneval") or {}
         sw = (S.get("swebench") or {}).get(m) or {}
         swr = f"{sw['resolved']}/{sw['submitted']}" if sw.get("resolved") is not None else "—"
         md.append(f"| {m} | {fmt(sizes.get(m), 2)} | {fmt(lb(m, 'pp'))} | {fmt(lb(m, 'tg'))} | "
-                  f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(benchy_tg(f'llama.cpp-{m}'))} | "
+                  f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(chat_tps(f'llama.cpp-{m}'))} | "
+                  f"{fmt(chat_tps(f'llama.cpp-{m}-mtp'))} | {fmt(benchy_tg(f'llama.cpp-{m}'))} | "
                   f"{fmt(benchy_tg(f'llama.cpp-{m}-mtp'))} | {fmt(ttft(f'llama.cpp-{m}'), 0)} | "
                   f"{fmt(100 * ev['plus_pass@1']) + '%' if ev.get('plus_pass@1') is not None else '—'} | {swr} |")
-    md += ["", "pp/tg in tokens/s. llama-bench columns are the engine alone; API columns are llama-benchy "
-           "through llama-server (MTP column empty when the model has no MTP head).", ""]
+    md += ["", "pp/tg in tokens/s. llama-bench columns (pp512, tg128) are the engine alone. chat tg is the "
+           "short-chat stream (256 tokens, thinking off) through llama-server; API columns are llama-benchy. "
+           "MTP columns are empty when MTP did not run.", ""]
     md += [f"- `{m['label']}`: [{m['repo']}](https://huggingface.co/{m['repo']}) `{m['file']}`" for m in env.get("models", [])]
     return md + [""]
 
@@ -300,11 +305,11 @@ def header(env, run_name):
 
 
 def compare(out, runs):
-    merged, menv, notes = {"llama_bench": [], "benchy": {}, "evalplus": {}, "swebench": {}}, {"models": []}, []
+    merged, menv, notes = {"llama_bench": [], "benchy": {}, "server": {}, "evalplus": {}, "swebench": {}}, {"models": []}, []
     for run in runs:
         S, env, _ = gather(run)
         merged["llama_bench"] += S.get("llama_bench", [])
-        for k in ("benchy", "evalplus", "swebench"):
+        for k in ("benchy", "server", "evalplus", "swebench"):
             merged[k].update(S.get(k) or {})
         menv["models"] += env.get("models", [])
         menv.setdefault("first", env)
