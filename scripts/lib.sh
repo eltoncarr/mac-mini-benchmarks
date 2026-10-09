@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../config.env
 source "$ROOT/config.env"
-[[ -f "$ROOT/config.local.env" ]] && source "$ROOT/config.local.env"
+if [[ -f "$ROOT/config.local.env" ]]; then source "$ROOT/config.local.env"; fi
 
 VENV="$ROOT/.venv"
 VENDOR="$ROOT/vendor"
@@ -14,6 +14,9 @@ LLAMA_DIR="$VENDOR/llama.cpp"
 LLAMA_BIN="$LLAMA_DIR/build/bin"
 export HF_HOME="${HF_HOME:-$ROOT/models/.hf}"
 export HF_HUB_ENABLE_HF_TRANSFER=1
+# Local servers (llama-server, proxy, mlx_lm.server) must bypass any HTTP(S) proxy
+# for the Python clients too (server_bench, llama-benchy, mini-swe-agent, EvalPlus).
+export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}" no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"
 
 log()  { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 # During a run, warnings and errors are also kept in $RUN/problems.log for summary.md.
@@ -49,10 +52,12 @@ llama_supports_mtp() {
 
 wait_for_http() {
   local url="$1" timeout="${2:-600}" t=0
-  until curl -sf "$url" >/dev/null 2>&1; do
+  # --noproxy: a local server must never be reached through an HTTP(S)_PROXY
+  until curl -sf --noproxy '*' "$url" >/dev/null 2>&1; do
+    if (( t >= timeout )); then return 1; fi
     sleep 2; t=$((t + 2))
-    (( t >= timeout )) && return 1
   done
+  return 0
 }
 
 # start_llama_server <gguf> <logfile> [extra args...]; sets SERVER_PID, returns 1 on failure.
@@ -75,7 +80,7 @@ start_llama_server() {
 # True if the running server actually drafts with MTP (llama.cpp reports draft_n).
 mtp_active() {
   local n
-  n="$(curl -sf "http://127.0.0.1:$SERVER_PORT/v1/chat/completions" -H 'Content-Type: application/json' \
+  n="$(curl -sf --noproxy '*' "http://127.0.0.1:$SERVER_PORT/v1/chat/completions" -H 'Content-Type: application/json' \
     -d '{"messages":[{"role":"user","content":"Count from 1 to 40, comma separated."}],"max_tokens":96,
          "chat_template_kwargs":{"enable_thinking":false}}' | jq -r '.timings.draft_n // 0' 2>/dev/null)"
   [[ "${n:-0}" -gt 0 ]]

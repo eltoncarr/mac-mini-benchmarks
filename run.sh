@@ -60,7 +60,7 @@ elif [[ "$USE_MTP" == 1 ]]; then
   warn "This llama.cpp build has no draft-mtp; all MTP runs are skipped"
 fi
 
-[[ "$SUITE" == ref4167 || "$SUITE" == mlx ]] && MODELS_SEL=""
+if [[ "$SUITE" == ref4167 || "$SUITE" == mlx ]]; then MODELS_SEL=""; fi
 models_json="$(for m in $MODELS_SEL; do f="$(model_path "$m")"
   jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(stat -f %z "$f")" \
     '{label:$l, repo:$r, file:$f, bytes:($b|tonumber)}'; done | jq -sc .)"
@@ -88,7 +88,7 @@ suite_ref4167() {
   local d="$MODELS/llama2-7b" args=()
   for pat in '*[Ff]16*.gguf' '*Q8_0*.gguf' '*Q4_0*.gguf'; do
     local f; f="$(find "$d" -name "$pat" 2>/dev/null | head -n1)"
-    [[ -n "$f" ]] && args+=(-m "$f")
+    if [[ -n "$f" ]]; then args+=(-m "$f"); fi
   done
   (( ${#args[@]} )) || { warn "Llama-2 7B reference models missing; skipping #4167 run"; return; }
   local delay=(); "$LLAMA_BIN/llama-bench" --help 2>&1 | grep -q -- "--delay" && delay=(--delay 30)
