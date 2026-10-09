@@ -5,19 +5,22 @@
 #   ./bootstrap.sh --no-docker     # skip Docker (SWE-bench needs it)
 #   ./bootstrap.sh --no-mlx        # skip the MLX model download
 #   ./bootstrap.sh --no-download   # tools only, no model downloads
+#   ./bootstrap.sh --model q8_0    # download only this GGUF model (repeatable; default: all)
 #   ./bootstrap.sh --wired-limit   # raise the GPU wired-memory limit (sudo, until reboot)
 #
 # Safe to re-run: every step is skipped when already done.
 source "$(dirname "$0")/scripts/lib.sh"
 
-WANT_DOCKER=1 WANT_MLX=1 WANT_DOWNLOAD=1 WANT_WIRED=0
-for a in "$@"; do
+WANT_DOCKER=1 WANT_MLX=1 WANT_DOWNLOAD=1 WANT_WIRED=0 ONLY_MODELS=""
+while (( $# )); do
+  a="$1"; shift
   case "$a" in
+    --model) ONLY_MODELS="$ONLY_MODELS ${1:?--model needs a label}"; shift ;;
     --no-docker) WANT_DOCKER=0 ;;
     --no-mlx) WANT_MLX=0 ;;
     --no-download) WANT_DOWNLOAD=0 ;;
     --wired-limit) WANT_WIRED=1 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) die "unknown flag: $a" ;;
   esac
 done
@@ -86,7 +89,8 @@ activate_venv
 
 # ---- 6. Models ----------------------------------------------------------------
 if [[ $WANT_DOWNLOAD == 1 ]]; then
-  for m in $(model_labels); do
+  for m in ${ONLY_MODELS:-$(model_labels)}; do
+    [[ -n "$(model_glob "$m")" ]] || die "Unknown model '$m'. Labels: $(model_labels | tr '\n' ' ')"
     if [[ -n "$(model_path "$m")" ]]; then log "GGUF $m present"; continue; fi
     log "Downloading $m: $(model_repo "$m") [$(model_glob "$m")]"
     hf download "$(model_repo "$m")" --local-dir "$(model_dir "$m")" --include "$(model_glob "$m")"

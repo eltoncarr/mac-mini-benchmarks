@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Aggregate a results/<run> directory into summary.json and summary.md."""
+"""Aggregate a results/<run> directory into summary.json and summary.md.
+
+  collect.py results/<run>
+  collect.py --compare out.md results/<run> results/<run> ...   # one row per model
+"""
 import json
 import pathlib
 import re
@@ -252,7 +256,10 @@ def comparison(S, env):
                 return b["e2e_ttft"]["mean"]
 
     sizes = {m["label"]: m["bytes"] / 2**30 for m in env.get("models", [])}
-    depth = max([r["n_depth"] for r in S.get("llama_bench", [])] or [0])
+    # deepest context that every model was measured at (runs can use different sweeps)
+    per_model = [{r["n_depth"] for r in S.get("llama_bench", []) if r["model"] == m} for m in models]
+    common = set.intersection(*per_model) if all(per_model) else set()
+    depth = max(common or {0})
     md = ["## Comparison", "",
           f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | API tg | API tg MTP | API TTFT ms | HumanEval+ | SWE-bench |",
           "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
@@ -270,20 +277,57 @@ def comparison(S, env):
     return md + [""]
 
 
-def main():
-    run = pathlib.Path(sys.argv[1])
+SECTIONS = (llama_bench, benchy, server, mlx, evalplus, swebench, power)
+
+
+def gather(run):
     env = load(run / "env.json") or {}
     S = {"run": run.name, "env": env}
-    md = [f"# {env.get('model', 'Model')} on {env.get('machine', {}).get('model_name', 'Mac')} "
-          f"({env.get('machine', {}).get('chip', '?')}, {env.get('machine', {}).get('memory_gb', '?')} GB)", "",
-          f"Run `{run.name}` · macOS {env.get('machine', {}).get('macos', '?')} · "
-          f"GPU cores {env.get('machine', {}).get('gpu_cores', '?')} · llama.cpp `{env.get('llama_cpp_commit', '?')}`", ""]
-    for fn in (llama_bench, benchy, server, mlx, evalplus, swebench, power):
+    md = []
+    for fn in SECTIONS:
         try:
             fn(run, S, md)
         except Exception as e:  # keep collecting other sections
             md += [f"> {fn.__name__}: failed to parse ({e})", ""]
-    md[4:4] = comparison(S, env)
+    return S, env, md
+
+
+def header(env, run_name):
+    m = env.get("machine", {})
+    return [f"# {env.get('model', 'Model')} on {m.get('model_name', 'Mac')} ({m.get('chip', '?')}, {m.get('memory_gb', '?')} GB)",
+            "", f"Run `{run_name}` · macOS {m.get('macos', '?')} · GPU cores {m.get('gpu_cores', '?')} · "
+            f"llama.cpp `{env.get('llama_cpp_commit', '?')}`", ""]
+
+
+def compare(out, runs):
+    merged, menv, notes = {"llama_bench": [], "benchy": {}, "evalplus": {}, "swebench": {}}, {"models": []}, []
+    for run in runs:
+        S, env, _ = gather(run)
+        merged["llama_bench"] += S.get("llama_bench", [])
+        for k in ("benchy", "evalplus", "swebench"):
+            merged[k].update(S.get(k) or {})
+        menv["models"] += env.get("models", [])
+        menv.setdefault("first", env)
+        notes.append(f"| `{run.name}` | {', '.join(m['label'] for m in env.get('models', [])) or '—'} | "
+                     f"{env.get('suite', '?')} | `{env.get('llama_cpp_commit', '?')}` | {env.get('machine', {}).get('macos', '?')} |")
+    commits = {n.split('|')[4].strip() for n in notes}
+    suites = {n.split('|')[3].strip() for n in notes}
+    md = header(menv["first"], ", ".join(r.name for r in runs)) + comparison(merged, menv)
+    md += ["### Runs", "", "| run | model | suite | llama.cpp | macOS |", "|---|---|---|---|---|"] + notes + [""]
+    if len(commits) > 1:
+        md += ["> Runs used different llama.cpp commits; speed numbers may not be directly comparable.", ""]
+    if len(suites) > 1:
+        md += ["> Runs are different suites (e.g. quick vs standard); SWE-bench subsets and reps differ.", ""]
+    pathlib.Path(out).write_text("\n".join(md) + "\n")
+    print(out)
+
+
+def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--compare":
+        return compare(sys.argv[2], [pathlib.Path(r) for r in sys.argv[3:]])
+    run = pathlib.Path(sys.argv[1])
+    S, env, body = gather(run)
+    md = header(env, run.name) + comparison(S, env) + body
     (run / "summary.json").write_text(json.dumps(S, indent=2))
     (run / "summary.md").write_text("\n".join(md) + "\n")
     print(run / "summary.md")

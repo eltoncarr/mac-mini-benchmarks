@@ -1,18 +1,31 @@
 # mac-mini-benchmarks
 
 Reproducible local-LLM benchmarks for an **Apple Mac mini M5 Pro (64 GB)**, focused on
-**Qwen3.8-27B** (dense, Apache 2.0). It compares two builds of the model head to head:
+**Qwen3.8-27B** (dense, Apache 2.0), comparing two builds of the model:
 
 | label | file | size | what it is |
 |---|---|---:|---|
-| `q8_0` | [unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) `*-Q8_0.gguf` | ~29 GB | standard 8-bit, near-lossless reference |
-| `gsq-iq3s-mtp` | [ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF) `Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf` | ~12 GB | GSQ+RCO non-uniform 3.5 bpw, with the MTP head for speculative decoding |
+| `gsq-iq3s-mtp` (default) | [ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF) `Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf` | ~12 GB | GSQ+RCO non-uniform 3.5 bpw, with the MTP head for speculative decoding |
+| `q8_0` | [unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) `*-Q8_0.gguf` | ~29 GB | standard 8-bit, near-lossless baseline |
 
 The question it answers: how much speed does the 12 GB build gain on this machine
 (smaller weights, plus MTP), and how much coding and agentic quality does it lose
-compared with Q8_0? Every suite runs both, and `summary.md` opens with a
-side-by-side comparison table. Models are listed in `GGUF_MODELS` in
-[`config.env`](config.env), so adding another build is one line.
+compared with Q8_0?
+
+Each `./run.sh` pass benchmarks **one model**, in its own results folder. Run the
+baseline as a second pass whenever you want it, then put the passes side by side:
+
+```bash
+./run.sh quick                          # pass 1: gsq-iq3s-mtp (first in GGUF_MODELS)
+MODEL=q8_0 ./run.sh quick               # pass 2, optional: the Q8_0 baseline
+./run.sh compare results/*_quick        # -> results/compare-<date>.md
+```
+
+One model per pass keeps runs isolated (a crash or reboot costs one run, not both),
+lets you stop after the first model, and gives each folder one model, one
+llama.cpp commit and one `env.json`. The compare step warns if the passes used
+different llama.cpp commits or different suites. Models are listed in
+`GGUF_MODELS` in [`config.env`](config.env), so adding another build is one line.
 
 The suite covers raw inference speed, serving latency, standard coding scores and agentic bug fixing on real repositories, all with
 standard tools so the numbers can be posted where the community compares them
@@ -21,7 +34,7 @@ standard tools so the numbers can be posted where the community compares them
 ```bash
 git clone https://github.com/eltoncarr/mac-mini-benchmarks && cd mac-mini-benchmarks
 ./bootstrap.sh            # one-time setup: tools, llama.cpp (Metal), Python env, models, Docker
-./run.sh quick            # 1-2 h: speed + API latency + one SWE-bench bug fix, per model
+./run.sh quick            # 30-90 min: speed + API latency + one SWE-bench bug fix
 ./run.sh standard         # overnight or longer: everything below
 cat results/*/summary.md
 ```
@@ -31,10 +44,10 @@ cat results/*/summary.md
 | Suite | Tool (standard) | Metrics |
 |---|---|---|
 | `perf` | `llama-bench` | **pp512**, **tg128** (t/s ± stddev), plus pp/tg at context depth 4k/16k/32k/64k (`-d`) for each model |
-| `ref4167` | `llama-bench` on Llama-2 7B F16/Q8_0/Q4_0 | the exact command the [llama.cpp Apple Silicon thread](https://github.com/ggml-org/llama.cpp/discussions/4167) uses, so the chip can be compared with every other Mac |
+| `ref4167` (run once) | `llama-bench` on Llama-2 7B F16/Q8_0/Q4_0 | the exact command the [llama.cpp Apple Silicon thread](https://github.com/ggml-org/llama.cpp/discussions/4167) uses, so the chip can be compared with every other Mac |
 | `server` | [llama-benchy](https://github.com/eugr/llama-benchy) against `llama-server` | the same pp/tg at depth through the OpenAI API, plus TTFT (time to first response, estimated prompt processing, end-to-end TTFT), prefix-cache reuse and 1/2/4 concurrent requests; with and without **MTP** speculative decoding, per model |
 | | `bench/server_bench.py` | what llama-benchy doesn't report: inter-token latency p50/p90/p99, TPOT and e2e latency for a short chat request |
-| `mlx` | `mlx_lm.benchmark`, then llama-benchy against `mlx_lm.server` | prompt/generation t/s and peak memory for the MLX 4-bit build, and the same API numbers as llama.cpp |
+| `mlx` (run once) | `mlx_lm.benchmark`, then llama-benchy against `mlx_lm.server` | prompt/generation t/s and peak memory for the MLX 4-bit build, and the same API numbers as llama.cpp |
 | `coding` | [EvalPlus](https://github.com/evalplus/evalplus) | HumanEval+ (and MBPP+ in `full`) pass@1, greedy |
 | `agent` | [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent) on [SWE-bench Verified](https://www.swebench.com/) | % resolved (official harness), plus a **per-call telemetry log** of the agent's real requests: context size, TTFT, prefill/decode t/s, prefix-cache hits and MTP acceptance as the context grows |
 | power (optional) | `powermetrics` | average/max CPU+GPU+ANE watts per phase (`MEASURE_POWER=1`) |
@@ -63,17 +76,22 @@ sampling, and a step limit (`SWE_STEP_LIMIT`, default 100).
 ## Suites
 
 ```
-./run.sh quick | standard | full
-./run.sh perf | ref4167 | server | mlx | coding | agent [smoke|mini|verified]
+[MODEL=<label>] ./run.sh quick | standard | full
+[MODEL=<label>] ./run.sh perf | server | coding | agent [smoke|mini|verified]
+./run.sh ref4167 | mlx                    # machine-level, not tied to a GGUF model; run once
 RUN_DIR=results/<run> ./run.sh coding     # add a suite to an existing run
 ./run.sh collect results/<run>            # rebuild summary.md / summary.json
+./run.sh compare results/<run> ...        # side-by-side table of several runs
 ```
+
+`standard` and `full` no longer include `ref4167` and `mlx`, since those don't
+depend on the model being tested.
 
 All settings are in [`config.env`](config.env). Put overrides in `config.local.env`
 (git-ignored), for example:
 
 ```bash
-MODELS_SEL="gsq-iq3s-mtp"     # run only one of the GGUF_MODELS
+MODEL=q8_0                    # default model for ./run.sh (else the first in GGUF_MODELS)
 SWE_SUBSET=verified
 AGENT_THINKING=0              # faster agent runs, usually lower resolve rate
 MEASURE_POWER=1               # run `sudo -v` before ./run.sh
@@ -113,7 +131,7 @@ These are estimates, not measurements. Replace them with your own after the firs
 | Item | Estimate |
 |---|---|
 | Disk | ~29 GB Q8_0 + ~12 GB IQ3_S + ~16 GB MLX + ~24 GB Llama-2 reference + ~1–3 GB per SWE-bench image |
-| `quick` | 1–2 h for both models (most of it is the SWE-bench task, run once per model) |
+| `quick` | 30–90 min per model (most of it is the SWE-bench task and its image pull) |
 | SWE-bench Verified Mini | roughly 12–30 h per model with thinking on; Q8_0 is the slower of the two |
 | SWE-bench Verified (500) | several days |
 
@@ -123,7 +141,9 @@ These are estimates, not measurements. Replace them with your own after the firs
   The run uses `caffeinate` so the Mac stays awake.
 - For Q8_0 with very long contexts, raise the GPU memory limit for the session:
   `./bootstrap.sh --no-download --wired-limit` (sudo, reset at reboot).
-- Run each suite twice and compare. `llama-bench` reports ± stddev over `BENCH_REPS`.
+- For repeatability, `llama-bench` and llama-benchy already repeat each test (`BENCH_REPS`,
+  `LATENCY_REPS`) and report ± stddev; a second identical pass is only needed to check
+  run-to-run drift (thermals, background load).
 
 ## Layout
 

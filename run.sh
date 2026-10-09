@@ -2,30 +2,40 @@
 # Run benchmark suites and collect results into results/<run>/.
 #
 #   ./run.sh quick      # ~30-90 min: llama-bench, llama-benchy, 1 SWE-bench task
-#   ./run.sh standard   # overnight+: full depth sweeps, prefix cache, concurrency, MLX,
-#                       #   #4167 reference, EvalPlus, SWE-bench Verified Mini (50)
+#   ./run.sh standard   # overnight+: full depth sweeps, prefix cache, concurrency,
+#                       #   EvalPlus, SWE-bench Verified Mini (50)
 #   ./run.sh full       # days: standard + SWE-bench Verified (500) + MBPP+
 #
-#   Individual suites: perf | ref4167 | server | mlx | coding | agent
-#   ./run.sh collect results/<run>      # rebuild summary.md
+#   Individual suites: perf | server | coding | agent
+#   Machine-level (no GGUF model, run once): ref4167 | mlx
+#   ./run.sh collect results/<run>               # rebuild summary.md
+#   ./run.sh compare results/<run> results/<run>  # side-by-side table -> results/compare-*.md
 #
-# Every suite runs each model in GGUF_MODELS (config.env); MODELS_SEL="q8_0" limits it.
+# One pass benchmarks one model: the first in GGUF_MODELS (config.env), or
+#   MODEL=q8_0 ./run.sh quick
 # RUN_DIR=results/<run> ./run.sh agent  adds a suite to an existing run.
 source "$(dirname "$0")/scripts/lib.sh"
 activate_venv
 
 SUITE="${1:-quick}"
 if [[ "$SUITE" == collect ]]; then python "$ROOT/bench/collect.py" "${2:?run dir}"; exit; fi
+if [[ "$SUITE" == compare ]]; then
+  shift; (( $# >= 1 )) || die "usage: ./run.sh compare results/<run> [results/<run> ...]"
+  python "$ROOT/bench/collect.py" --compare "$ROOT/results/compare-$(date +%Y%m%d-%H%M).md" "$@"; exit
+fi
+
+MODEL="${MODEL:-$(model_labels | head -n1)}"
+[[ -n "$(model_glob "$MODEL")" ]] || die "Unknown MODEL '$MODEL'. Labels in GGUF_MODELS: $(model_labels | tr '\n' ' ')"
+[[ -n "$(model_path "$MODEL")" ]] || die "Model $MODEL not downloaded; run ./bootstrap.sh"
+MODELS_SEL="$MODEL"
 
 STAMP="$(date +%Y%m%d-%H%M)"
-RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${MODEL_NAME}_${SUITE}}"
+case "$SUITE" in  # these two don't use the GGUF model
+  ref4167|mlx) RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${SUITE}}" ;;
+  *)           RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${MODEL_NAME}_${MODEL}_${SUITE}}" ;;
+esac
 RUN="$(mkdir -p "$RUN" && cd "$RUN" && pwd)"
 mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,power,logs}
-ALL_MODELS="$(model_labels | tr '\n' ' ')"
-MODELS_SEL="${MODELS_SEL:-$ALL_MODELS}"   # MODELS_SEL="q8_0" ./run.sh ... runs a subset
-for m in $MODELS_SEL; do
-  [[ -n "$(model_path "$m")" ]] || die "Model $m not downloaded (or not in GGUF_MODELS); run ./bootstrap.sh"
-done
 SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 
 cleanup() { stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"; }
@@ -39,6 +49,7 @@ elif [[ "$USE_MTP" == 1 ]]; then
   warn "This llama.cpp build has no draft-mtp; all MTP runs are skipped"
 fi
 
+[[ "$SUITE" == ref4167 || "$SUITE" == mlx ]] && MODELS_SEL=""
 models_json="$(for m in $MODELS_SEL; do f="$(model_path "$m")"
   jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(stat -f %z "$f")" \
     '{label:$l, repo:$r, file:$f, bytes:($b|tonumber)}'; done | jq -sc .)"
@@ -271,9 +282,7 @@ case "$SUITE" in
     suite_agent smoke ;;
   standard|full)
     suite_perf "$BENCH_DEPTHS"
-    if [[ "$RUN_4167_REFERENCE" == 1 ]]; then suite_ref4167; fi
     suite_server "$BENCHY_DEPTHS" 1
-    suite_mlx
     if [[ $SUITE == full ]]; then suite_coding "humaneval mbpp"; else suite_coding "$EVALPLUS_DATASETS"; fi
     suite_agent "$([[ $SUITE == full ]] && echo verified || echo "$SWE_SUBSET")" ;;
   perf)    suite_perf "$BENCH_DEPTHS" ;;
@@ -282,7 +291,7 @@ case "$SUITE" in
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;
-  *) die "unknown suite: $SUITE (quick|standard|full|perf|ref4167|server|mlx|coding|agent|collect)" ;;
+  *) die "unknown suite: $SUITE (quick|standard|full|perf|ref4167|server|mlx|coding|agent|collect|compare)" ;;
 esac
 
 python "$ROOT/bench/collect.py" "$RUN"
