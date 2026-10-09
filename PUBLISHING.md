@@ -8,7 +8,8 @@ back to `results/<run>/summary.md` (or this repo, if you make it public) for the
 | Venue | What to post | How |
 |---|---|---|
 | [llama.cpp Discussion #4167 "Performance of llama.cpp on Apple Silicon M-series"](https://github.com/ggml-org/llama.cpp/discussions/4167) | `results/<run>/llama_bench/4167.md` (Llama-2 7B F16/Q8_0/Q4_0, pp512/tg128) | Reply in the thread with chip, GPU cores, RAM, and the table plus `build:` line. This is the main table for comparing Macs. The thread pins a llama.cpp commit for the reference numbers; set `LLAMA_CPP_REF` to it for an exact comparison. M5 Pro rows already exist for MacBook Pro, so a Mac mini row is new data. |
-| [unsloth/Qwen3.8-27B-GGUF discussions](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions) | `llama-bench` table for Qwen3.8-27B per quant, and the llama-benchy table for MTP on/off | Community threads where users share speeds by hardware. |
+| [ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF discussions](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF/discussions) | The comparison table: IQ3_S-mtp vs Q8_0 speed (MTP on/off) and quality (HumanEval+, SWE-bench) | The GSQ authors and users discuss quality vs size there; Apple silicon results with a Q8_0 baseline on the same machine are directly useful. |
+| [unsloth/Qwen3.8-27B-GGUF discussions](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/discussions) | `llama-bench` table for Q8_0, and the llama-benchy table | Community threads where users share speeds by hardware. |
 | Wherever llama-benchy tables are shared (e.g. the [NVIDIA developer forum thread](https://forums.developer.nvidia.com/t/new-tool-llama-benchy-llama-bench-style-benchmarking-for-any-llm-backend-vllm-sglang-llama-cpp-etc/356698) for DGX Spark, r/LocalLLaMA) | `results/<run>/benchy/*.json` rendered in `summary.md` | llama-benchy output is the common format for comparing server-side pp/tg at depth across machines and engines (vLLM, SGLang, llama.cpp, MLX). Include the llama-benchy version and latency mode. |
 | [LocalScore](https://www.localscore.ai/) | LocalScore's own test (built on llama-bench) | Accepts results only from its official CLI (`localscore` from Mozilla's llamafile releases). Run it on its own; it isn't wrapped here. |
 | [oMLX community benchmarks](https://omlx.ai/benchmarks/performance) and [mlx-Chronos](https://github.com/jundot/omlx/discussions/1391) | MLX prefill/decode, TTFT | For MLX-engine numbers. mlx-Chronos keeps a leaderboard of MLX serving metrics (TTFT, throughput) and asks for results from more Apple silicon machines. |
@@ -25,5 +26,5 @@ back to `results/<run>/summary.md` (or this repo, if you make it public) for the
 
 - Hardware: Mac mini, M5 Pro, CPU/GPU core count, 64 GB, macOS version (`env.json`)
 - Software: llama.cpp commit, engine flags (`-fa on`, KV `q8_0`, context), MTP on/off
-- Model: exact repo + quant file (e.g. `unsloth/Qwen3.8-27B-GGUF` UD-Q4_K_XL)
+- Models: exact repo + file for each (listed at the top of `summary.md`)
 - For SWE-bench: subset, step limit, thinking on/off, evaluator (local harness vs sb-cli)

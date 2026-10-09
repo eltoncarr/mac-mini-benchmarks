@@ -2,13 +2,14 @@
 # Run benchmark suites and collect results into results/<run>/.
 #
 #   ./run.sh quick      # ~30-90 min: llama-bench, llama-benchy, 1 SWE-bench task
-#   ./run.sh standard   # overnight: + all quants, depth sweeps, MTP on/off, MLX,
+#   ./run.sh standard   # overnight+: full depth sweeps, prefix cache, concurrency, MLX,
 #                       #   #4167 reference, EvalPlus, SWE-bench Verified Mini (50)
 #   ./run.sh full       # days: standard + SWE-bench Verified (500) + MBPP+
 #
 #   Individual suites: perf | ref4167 | server | mlx | coding | agent
 #   ./run.sh collect results/<run>      # rebuild summary.md
 #
+# Every suite runs each model in GGUF_MODELS (config.env); MODELS_SEL="q8_0" limits it.
 # RUN_DIR=results/<run> ./run.sh agent  adds a suite to an existing run.
 source "$(dirname "$0")/scripts/lib.sh"
 activate_venv
@@ -20,9 +21,11 @@ STAMP="$(date +%Y%m%d-%H%M)"
 RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${MODEL_NAME}_${SUITE}}"
 RUN="$(mkdir -p "$RUN" && cd "$RUN" && pwd)"
 mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,power,logs}
-PRIMARY="$(primary_quant)"
-PRIMARY_GGUF="$(gguf_path "$PRIMARY")"
-[[ -n "$PRIMARY_GGUF" ]] || die "Primary quant $PRIMARY not downloaded; run ./bootstrap.sh"
+ALL_MODELS="$(model_labels | tr '\n' ' ')"
+MODELS_SEL="${MODELS_SEL:-$ALL_MODELS}"   # MODELS_SEL="q8_0" ./run.sh ... runs a subset
+for m in $MODELS_SEL; do
+  [[ -n "$(model_path "$m")" ]] || die "Model $m not downloaded (or not in GGUF_MODELS); run ./bootstrap.sh"
+done
 SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 
 cleanup() { stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"; }
@@ -32,25 +35,28 @@ caffeinate -dimsu -w $$ &   # keep the Mac awake for the whole run
 MTP_ARGS=()
 if [[ "$USE_MTP" == 1 ]] && llama_supports_mtp; then
   MTP_ARGS=(--spec-type draft-mtp --spec-draft-n-max "$MTP_DRAFT_N")
+elif [[ "$USE_MTP" == 1 ]]; then
+  warn "This llama.cpp build has no draft-mtp; all MTP runs are skipped"
 fi
 
+models_json="$(for m in $MODELS_SEL; do f="$(model_path "$m")"
+  jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(stat -f %z "$f")" \
+    '{label:$l, repo:$r, file:$f, bytes:($b|tonumber)}'; done | jq -sc .)"
 python "$ROOT/bench/sysinfo.py" "$RUN/env.json" "$LLAMA_DIR" "$MODEL_NAME" \
-  "$(jq -nc --arg s "$SUITE" --arg q "$GGUF_QUANTS" --arg r "$GGUF_REPO" --arg kv "$KV_CACHE_TYPE" \
+  "$(jq -nc --arg s "$SUITE" --argjson models "$models_json" --arg kv "$KV_CACHE_TYPE" \
       --arg ctx "$SERVER_CTX" --arg mtp "${MTP_ARGS[*]:-}" \
-      '{suite:$s, gguf_repo:$r, quants:($q|split(" ")), kv_cache:$kv, server_ctx:($ctx|tonumber), mtp_args:$mtp}')"
+      '{suite:$s, models:$models, kv_cache:$kv, server_ctx:($ctx|tonumber), mtp_args:$mtp}')"
 log "Run directory: $RUN"
 
 # ---- perf: llama-bench pp512/tg128 + context-depth sweep ------------------------
-suite_perf() {
-  local quants="$1" depths="$2"
-  for q in $quants; do
-    local g; g="$(gguf_path "$q")"
-    [[ -n "$g" ]] || { warn "skip $q (not downloaded)"; continue; }
-    log "llama-bench $q (depths $depths)"
-    start_power "$RUN/power/llama-bench-$q.txt"
-    "$LLAMA_BIN/llama-bench" -m "$g" -p 512 -n 128 -d "$depths" -ngl 99 -fa 1 \
-      -r "$BENCH_REPS" -o json >"$RUN/llama_bench/$q.json" 2>"$RUN/logs/llama-bench-$q.log" \
-      || warn "llama-bench $q failed (see logs/llama-bench-$q.log)"
+suite_perf() {  # <depths>
+  local depths="$1" m
+  for m in $MODELS_SEL; do
+    log "llama-bench $m (depths $depths)"
+    start_power "$RUN/power/llama-bench-$m.txt"
+    "$LLAMA_BIN/llama-bench" -m "$(model_path "$m")" -p 512 -n 128 -d "$depths" -ngl 99 -fa 1 \
+      -r "$BENCH_REPS" -o json >"$RUN/llama_bench/$m.json" 2>"$RUN/logs/llama-bench-$m.log" \
+      || warn "llama-bench $m failed (see logs/llama-bench-$m.log)"
     stop_power
   done
 }
@@ -89,37 +95,65 @@ run_latency() {  # <label> <port> <served-model-name>
     --reps "$LATENCY_REPS" --out "$RUN/server/$1.json" || warn "server latency $1 failed"
 }
 
-suite_server() {  # <quants> <depths> <full: 1 adds prefix-cache + concurrency runs>
-  local quants="$1" depths="$2" full="$3"
-  [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
-  for q in $quants; do
-    local g; g="$(gguf_path "$q")"; [[ -n "$g" ]] || continue
-    start_llama_server "$g" "$RUN/logs/server-$q.log" -c "$SERVER_CTX" -np 1
-    start_power "$RUN/power/server-$q.txt"
-    run_benchy "llama.cpp-$q" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
-    run_latency "llama.cpp-$q" "$SERVER_PORT" "$MODEL_NAME"
-    stop_power
-    if [[ $full == 1 && $q == "$PRIMARY" ]]; then
-      run_benchy "llama.cpp-$q-prefix-cache" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "4096 16384 32768" \
-        --enable-prefix-caching
+# start_model_server <model> <tag> <mtp:0|1> [extra llama-server args...]
+# With mtp=1, succeeds only if the server really drafts with MTP for this model.
+start_model_server() {
+  local m="$1" tag="$2" mtp="$3"; shift 3
+  local logf="$RUN/logs/server-$m-$tag.log"
+  if [[ $mtp == 1 ]]; then
+    (( ${#MTP_ARGS[@]} )) || return 1
+    start_llama_server "$(model_path "$m")" "$logf" "$@" "${MTP_ARGS[@]}" || return 1
+    if ! mtp_active; then
+      warn "$m: no MTP drafting (GGUF has no MTP head?); MTP runs skipped for this model"
+      stop_pid "$SERVER_PID"; SERVER_PID=""
+      return 1
     fi
-    stop_pid "$SERVER_PID"; SERVER_PID=""
+  else
+    start_llama_server "$(model_path "$m")" "$logf" "$@" || return 1
+  fi
+}
+
+# Serve a model for quality suites: with MTP when it works (faster), else plain.
+# Sets SERVED_MTP=1/0.
+start_quality_server() {
+  local m="$1" tag="$2"; shift 2
+  SERVED_MTP=1
+  start_model_server "$m" "$tag-mtp" 1 "$@" && return 0
+  SERVED_MTP=0
+  start_model_server "$m" "$tag" 0 "$@"
+}
+
+suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
+  local depths="$1" full="$2" m
+  [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
+  for m in $MODELS_SEL; do
+    if start_model_server "$m" plain 0 -c "$SERVER_CTX" -np 1; then
+      start_power "$RUN/power/server-$m.txt"
+      run_benchy "llama.cpp-$m" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
+      run_latency "llama.cpp-$m" "$SERVER_PORT" "$MODEL_NAME"
+      stop_power
+      if [[ $full == 1 ]]; then
+        run_benchy "llama.cpp-$m-prefix-cache" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "4096 16384 32768" \
+          --enable-prefix-caching
+      fi
+      stop_pid "$SERVER_PID"; SERVER_PID=""
+    fi
+    if start_model_server "$m" mtp 1 -c "$SERVER_CTX" -np 1; then
+      start_power "$RUN/power/server-$m-mtp.txt"
+      run_benchy "llama.cpp-$m-mtp" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
+      run_latency "llama.cpp-$m-mtp" "$SERVER_PORT" "$MODEL_NAME"
+      stop_power; stop_pid "$SERVER_PID"; SERVER_PID=""
+    fi
+    if [[ $full == 1 ]]; then
+      local np; np="$(echo "$CONCURRENCY_LEVELS" | tr ' ' '\n' | sort -n | tail -n1)"
+      if start_model_server "$m" "np$np" 0 -c $((np * 16384)) -np "$np"; then
+        # shellcheck disable=SC2086
+        run_benchy "llama.cpp-$m-concurrency" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "0 4096" \
+          --no-cache --concurrency $CONCURRENCY_LEVELS
+        stop_pid "$SERVER_PID"; SERVER_PID=""
+      fi
+    fi
   done
-  if (( ${#MTP_ARGS[@]} )); then
-    start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-$PRIMARY-mtp.log" -c "$SERVER_CTX" -np 1 "${MTP_ARGS[@]}"
-    start_power "$RUN/power/server-$PRIMARY-mtp.txt"
-    run_benchy "llama.cpp-$PRIMARY-mtp" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
-    run_latency "llama.cpp-$PRIMARY-mtp" "$SERVER_PORT" "$MODEL_NAME"
-    stop_power; stop_pid "$SERVER_PID"; SERVER_PID=""
-  fi
-  if [[ $full == 1 ]]; then
-    local np; np="$(echo "$CONCURRENCY_LEVELS" | tr ' ' '\n' | sort -n | tail -n1)"
-    start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-$PRIMARY-np$np.log" -c $((np * 16384)) -np "$np"
-    # shellcheck disable=SC2086
-    run_benchy "llama.cpp-$PRIMARY-concurrency" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "0 4096" \
-      --no-cache --concurrency $CONCURRENCY_LEVELS
-    stop_pid "$SERVER_PID"; SERVER_PID=""
-  fi
 }
 
 # ---- mlx: mlx_lm.benchmark + the same server suite against mlx_lm.server ---------
@@ -146,22 +180,26 @@ suite_mlx() {
 }
 
 # ---- coding: EvalPlus HumanEval+/MBPP+ --------------------------------------------
-suite_coding() {
-  local datasets="$1"
-  start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-coding.log" -c 32768 -np 1 ${MTP_ARGS[@]+"${MTP_ARGS[@]}"} \
-    --chat-template-kwargs "{\"enable_thinking\": $([[ $EVALPLUS_THINKING == 1 ]] && echo true || echo false)}"
-  for ds in $datasets; do
-    log "EvalPlus $ds"
-    OPENAI_API_KEY=local evalplus.evaluate --model "$MODEL_NAME" --dataset "$ds" --backend openai \
-      --base-url "http://127.0.0.1:$SERVER_PORT/v1" --greedy --root "$RUN/evalplus/raw" \
-      2>&1 | tee "$RUN/evalplus/$ds.log" | tail -n 8 || warn "EvalPlus $ds failed"
+suite_coding() {  # <datasets>
+  local datasets="$1" m ds
+  for m in $MODELS_SEL; do
+    start_quality_server "$m" coding -c 32768 -np 1 \
+      --chat-template-kwargs "{\"enable_thinking\": $([[ $EVALPLUS_THINKING == 1 ]] && echo true || echo false)}" \
+      || { warn "skip EvalPlus for $m"; continue; }
+    mkdir -p "$RUN/evalplus/$m"
+    for ds in $datasets; do
+      log "EvalPlus $ds on $m (mtp=$SERVED_MTP)"
+      OPENAI_API_KEY=local evalplus.evaluate --model "$MODEL_NAME-$m" --dataset "$ds" --backend openai \
+        --base-url "http://127.0.0.1:$SERVER_PORT/v1" --greedy --root "$RUN/evalplus/raw/$m" \
+        2>&1 | tee "$RUN/evalplus/$m/$ds.log" | tail -n 8 || warn "EvalPlus $ds on $m failed"
+    done
+    stop_pid "$SERVER_PID"; SERVER_PID=""
   done
-  stop_pid "$SERVER_PID"; SERVER_PID=""
 }
 
 # ---- agent: SWE-bench with mini-swe-agent (real repos, fix-a-bug tasks) ----------
-suite_agent() {
-  local subset="$1" ds args=()
+suite_agent() {  # <smoke|mini|verified>
+  local subset="$1" ds args=() m
   docker info >/dev/null 2>&1 || die "Docker is not running (needed for SWE-bench). Start Docker/Colima."
   case "$subset" in
     smoke)    ds=verified; args=(--filter "^${SWE_SMOKE_INSTANCE}\$") ;;
@@ -169,29 +207,38 @@ suite_agent() {
     verified) ds=verified ;;
     *) die "unknown SWE subset $subset" ;;
   esac
-  local d="$RUN/swebench" np="$SWE_WORKERS"
-  start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-agent.log" -c $((SERVER_CTX * np)) -np "$np" ${MTP_ARGS[@]+"${MTP_ARGS[@]}"}
-  python "$ROOT/bench/telemetry_proxy.py" --listen "$PROXY_PORT" --upstream "http://127.0.0.1:$SERVER_PORT" \
-    --log "$d/calls.jsonl" & PROXY_PID=$!
-  python "$ROOT/bench/swe_config.py" --api-base "http://127.0.0.1:$PROXY_PORT/v1" --model "$MODEL_NAME" \
-    --step-limit "$SWE_STEP_LIMIT" --thinking "$AGENT_THINKING" --out "$d/mini-swe-agent.yaml"
-  log "mini-swe-agent on SWE-bench [$subset] ($np worker(s)); trajectories in $d/trajs"
-  local t0=$SECONDS
-  MSWEA_COST_TRACKING=ignore_errors mini-extra swebench --subset "$ds" --split test \
-    -c "$d/mini-swe-agent.yaml" -w "$np" -o "$d/trajs" ${args[@]+"${args[@]}"} \
-    >"$RUN/logs/mini-swe-agent.log" 2>&1 || warn "mini-swe-agent exited non-zero (logs/mini-swe-agent.log)"
-  local wall=$((SECONDS - t0))
-  stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
-  jq -n --arg s "$subset" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
-     --argjson w "$wall" --argjson np "$np" --arg v "$(pip show mini-swe-agent 2>/dev/null | awk '/^Version/{print $2}')" \
-     '{subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' >"$d/meta.json"
-  [[ -f "$d/trajs/preds.json" ]] || { warn "no preds.json produced"; return; }
-  cp "$d/trajs/preds.json" "$d/preds.json"
-  swe_evaluate "$d"
+  local np="$SWE_WORKERS"
+  for m in $MODELS_SEL; do
+    local d="$RUN/swebench/$m"
+    mkdir -p "$d"
+    start_quality_server "$m" agent -c $((SERVER_CTX * np)) -np "$np" || { warn "skip SWE-bench for $m"; continue; }
+    python "$ROOT/bench/telemetry_proxy.py" --listen "$PROXY_PORT" --upstream "http://127.0.0.1:$SERVER_PORT" \
+      --log "$d/calls.jsonl" & PROXY_PID=$!
+    python "$ROOT/bench/swe_config.py" --api-base "http://127.0.0.1:$PROXY_PORT/v1" --model "$MODEL_NAME-$m" \
+      --step-limit "$SWE_STEP_LIMIT" --thinking "$AGENT_THINKING" --out "$d/mini-swe-agent.yaml"
+    log "mini-swe-agent on SWE-bench [$subset] with $m (mtp=$SERVED_MTP, $np worker(s))"
+    local t0=$SECONDS
+    MSWEA_COST_TRACKING=ignore_errors mini-extra swebench --subset "$ds" --split test \
+      -c "$d/mini-swe-agent.yaml" -w "$np" -o "$d/trajs" ${args[@]+"${args[@]}"} \
+      >"$RUN/logs/mini-swe-agent-$m.log" 2>&1 || warn "mini-swe-agent exited non-zero (logs/mini-swe-agent-$m.log)"
+    local wall=$((SECONDS - t0))
+    stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
+    jq -n --arg s "$subset" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
+       --argjson w "$wall" --argjson np "$np" --argjson mtp "$SERVED_MTP" \
+       --arg v "$(pip show mini-swe-agent 2>/dev/null | awk '/^Version/{print $2}')" \
+       '{subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), mtp:($mtp==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' \
+       >"$d/meta.json"
+    if [[ -f "$d/trajs/preds.json" ]]; then
+      cp "$d/trajs/preds.json" "$d/preds.json"
+      swe_evaluate "$d" "$m"
+    else
+      warn "no preds.json produced for $m"
+    fi
+  done
 }
 
 swe_evaluate() {
-  local d="$1" run_id; run_id="$(basename "$RUN" | tr -c 'A-Za-z0-9_.\n-' '_')"
+  local d="$1" m="$2" run_id; run_id="$(basename "$RUN" | tr -c 'A-Za-z0-9_.\n-' '_')_$2"
   case "$SWE_EVAL" in
     none) log "SWE_EVAL=none: predictions saved, not evaluated" ;;
     sbcli)
@@ -199,7 +246,7 @@ swe_evaluate() {
       log "Submitting to SWE-bench cloud evaluator (sb-cli)"
       mkdir -p "$d/sbcli"
       sb-cli submit swe-bench_verified test --predictions_path "$d/preds.json" --run_id "$run_id" \
-        --output_dir "$d/sbcli" >"$RUN/logs/sbcli.log" 2>&1 || warn "sb-cli failed (logs/sbcli.log)"
+        --output_dir "$d/sbcli" >"$RUN/logs/sbcli-$m.log" 2>&1 || warn "sb-cli failed (logs/sbcli-$m.log)"
       local r; r="$(grep -l resolved_instances "$d"/sbcli/*.json 2>/dev/null | head -n1)"
       if [[ -n "$r" ]]; then cp "$r" "$d/report.json"; fi ;;
     local)
@@ -210,7 +257,7 @@ swe_evaluate() {
         --dataset_name SWE-bench/SWE-bench_Verified --split test \
         --predictions_path "$d/preds.json" --instance_ids $ids \
         --max_workers 4 --run_id "$run_id" --report_dir "$d") \
-        >"$RUN/logs/swebench-eval.log" 2>&1 || warn "SWE-bench evaluation failed (logs/swebench-eval.log)"
+        >"$RUN/logs/swebench-eval-$m.log" 2>&1 || warn "SWE-bench evaluation failed (logs/swebench-eval-$m.log)"
       local r; r="$(ls "$d"/*."$run_id".json 2>/dev/null | head -n1)"
       if [[ -n "$r" ]]; then mv "$r" "$d/report.json"; fi ;;
   esac
@@ -219,19 +266,19 @@ swe_evaluate() {
 case "$SUITE" in
   quick)
     BENCH_REPS=3
-    suite_perf "$PRIMARY" "0,16384"
-    suite_server "$PRIMARY" "0 16384" 0
+    suite_perf "0,16384"
+    suite_server "0 16384" 0
     suite_agent smoke ;;
   standard|full)
-    suite_perf "$GGUF_QUANTS" "$BENCH_DEPTHS"
+    suite_perf "$BENCH_DEPTHS"
     if [[ "$RUN_4167_REFERENCE" == 1 ]]; then suite_ref4167; fi
-    suite_server "$GGUF_QUANTS" "$BENCHY_DEPTHS" 1
+    suite_server "$BENCHY_DEPTHS" 1
     suite_mlx
     if [[ $SUITE == full ]]; then suite_coding "humaneval mbpp"; else suite_coding "$EVALPLUS_DATASETS"; fi
     suite_agent "$([[ $SUITE == full ]] && echo verified || echo "$SWE_SUBSET")" ;;
-  perf)    suite_perf "$GGUF_QUANTS" "$BENCH_DEPTHS" ;;
+  perf)    suite_perf "$BENCH_DEPTHS" ;;
   ref4167) suite_ref4167 ;;
-  server)  suite_server "$GGUF_QUANTS" "$BENCHY_DEPTHS" 1 ;;
+  server)  suite_server "$BENCHY_DEPTHS" 1 ;;
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;

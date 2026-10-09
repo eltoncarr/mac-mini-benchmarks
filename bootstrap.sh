@@ -86,13 +86,11 @@ activate_venv
 
 # ---- 6. Models ----------------------------------------------------------------
 if [[ $WANT_DOWNLOAD == 1 ]]; then
-  dest="$MODELS/${GGUF_REPO//\//__}"
-  for q in $GGUF_QUANTS; do
-    if [[ -n "$(gguf_path "$q")" ]]; then log "GGUF $q present"; continue; fi
-    log "Downloading $GGUF_REPO [$q]"
-    hf download "$GGUF_REPO" --local-dir "$dest" \
-      --include "*-${q}.gguf" "*-${q}-*-of-*.gguf" "${q}/*.gguf"
-    [[ -n "$(gguf_path "$q")" ]] || die "No GGUF matching $q in $GGUF_REPO; check GGUF_QUANTS"
+  for m in $(model_labels); do
+    if [[ -n "$(model_path "$m")" ]]; then log "GGUF $m present"; continue; fi
+    log "Downloading $m: $(model_repo "$m") [$(model_glob "$m")]"
+    hf download "$(model_repo "$m")" --local-dir "$(model_dir "$m")" --include "$(model_glob "$m")"
+    [[ -n "$(model_path "$m")" ]] || die "No file matching $(model_glob "$m") in $(model_repo "$m"); check GGUF_MODELS"
   done
   if [[ -z "$(ls "$MODELS/tokenizer"/tokenizer*.json 2>/dev/null)" ]]; then
     log "Downloading tokenizer from $TOKENIZER_REPO (for llama-benchy)"

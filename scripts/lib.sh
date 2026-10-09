@@ -25,14 +25,15 @@ activate_venv() {
   source "$VENV/bin/activate"
 }
 
-# Resolve the first .gguf file (first shard for split models) for a quant.
-gguf_path() {
-  local quant="$1" dir="$MODELS/${GGUF_REPO//\//__}"
-  find "$dir" -type f \( -name "*-${quant}.gguf" -o -name "*-${quant}-00001-of-*.gguf" \) \
-    ! -name "mmproj*" 2>/dev/null | sort | head -n1
+# GGUF_MODELS helpers. Each non-empty line: "label repo file-pattern".
+model_labels() { awk 'NF==3{print $1}' <<<"$GGUF_MODELS"; }
+model_repo()   { awk -v l="$1" 'NF==3 && $1==l{print $2}' <<<"$GGUF_MODELS"; }
+model_glob()   { awk -v l="$1" 'NF==3 && $1==l{print $3}' <<<"$GGUF_MODELS"; }
+model_dir()    { local r; r="$(model_repo "$1")"; echo "$MODELS/${r//\//__}"; }
+# Path of the model's .gguf (first shard for split files), empty if not downloaded.
+model_path() {
+  find "$(model_dir "$1")" -type f -name "$(model_glob "$1")" ! -name "mmproj*" 2>/dev/null | sort | head -n1
 }
-
-primary_quant() { echo "${GGUF_QUANTS%% *}"; }
 
 llama_supports_mtp() {
   "$LLAMA_BIN/llama-server" --help 2>&1 | grep -q "draft-mtp"
@@ -46,7 +47,7 @@ wait_for_http() {
   done
 }
 
-# start_llama_server <gguf> <logfile> [extra args...]; sets SERVER_PID.
+# start_llama_server <gguf> <logfile> [extra args...]; sets SERVER_PID, returns 1 on failure.
 start_llama_server() {
   local model="$1" logf="$2"; shift 2
   "$LLAMA_BIN/llama-server" -m "$model" --host 127.0.0.1 --port "$SERVER_PORT" \
@@ -55,10 +56,21 @@ start_llama_server() {
     "$@" >"$logf" 2>&1 &
   SERVER_PID=$!
   if ! wait_for_http "http://127.0.0.1:$SERVER_PORT/health" 900; then
-    tail -n 40 "$logf" >&2
-    die "llama-server did not become healthy (log: $logf)"
+    tail -n 20 "$logf" >&2
+    warn "llama-server did not become healthy (log: $logf)"
+    stop_pid "$SERVER_PID"; SERVER_PID=""
+    return 1
   fi
   log "llama-server up (pid $SERVER_PID): $*"
+}
+
+# True if the running server actually drafts with MTP (llama.cpp reports draft_n).
+mtp_active() {
+  local n
+  n="$(curl -sf "http://127.0.0.1:$SERVER_PORT/v1/chat/completions" -H 'Content-Type: application/json' \
+    -d '{"messages":[{"role":"user","content":"Count from 1 to 40, comma separated."}],"max_tokens":96,
+         "chat_template_kwargs":{"enable_thinking":false}}' | jq -r '.timings.draft_n // 0' 2>/dev/null)"
+  [[ "${n:-0}" -gt 0 ]]
 }
 
 stop_pid() {

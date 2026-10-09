@@ -27,13 +27,14 @@ def llama_bench(run, S, md):
             test = (f"pp{r['n_prompt']}" if r.get("n_prompt") else f"tg{r['n_gen']}")
             if r.get("n_depth"):
                 test += f" @ d{r['n_depth']}"
-            rows.append({"quant": f.stem, "test": test, "avg_ts": r.get("avg_ts"), "stddev_ts": r.get("stddev_ts"),
-                         "size_gib": (r.get("model_size") or 0) / 2**30, "build": r.get("build_commit"),
-                         "spec": f.stem.endswith("-mtp")})
+            rows.append({"model": f.stem, "n_depth": r.get("n_depth") or 0, "n_prompt": r.get("n_prompt"),
+                         "n_gen": r.get("n_gen"), "test": test, "avg_ts": r.get("avg_ts"), "stddev_ts": r.get("stddev_ts"),
+                         "size_gib": (r.get("model_size") or 0) / 2**30, "build": r.get("build_commit")})
     S["llama_bench"] = rows
     if rows:
-        md += ["## llama-bench (llama.cpp, Metal)", "", "| quant | test | t/s | ± |", "|---|---|---:|---:|"]
-        md += [f"| {r['quant']} | {r['test']} | {fmt(r['avg_ts'], 2)} | {fmt(r['stddev_ts'], 2)} |" for r in rows]
+        md += ["## llama-bench (llama.cpp, Metal)", "", "| model | size GiB | test | t/s | ± |", "|---|---:|---|---:|---:|"]
+        md += [f"| {r['model']} | {fmt(r['size_gib'], 2)} | {r['test']} | {fmt(r['avg_ts'], 2)} | {fmt(r['stddev_ts'], 2)} |"
+               for r in rows]
         md += ["", f"build `{rows[0]['build']}`", ""]
     ref = run / "llama_bench" / "4167.md"
     if ref.exists():
@@ -149,10 +150,7 @@ def agent_telemetry(path):
     return out
 
 
-def swebench(run, S, md):
-    d = run / "swebench"
-    if not d.exists():
-        return
+def swebench_one(d):
     out = {}
     rep = load(d / "report.json")
     if rep:
@@ -166,19 +164,34 @@ def swebench(run, S, md):
         out["empty_patches"] = sum(1 for p in preds.values() if not (p.get("model_patch") or "").strip())
     if (d / "calls.jsonl").exists():
         out["telemetry"] = agent_telemetry(d / "calls.jsonl")
-    meta = load(d / "meta.json") or {}
-    out.update(meta)
-    S["swebench"] = out
-    md += ["## Agentic coding: SWE-bench (mini-swe-agent, bash-only)", ""]
-    md.append(f"Subset **{meta.get('subset', '?')}**, step limit {meta.get('step_limit', '?')}, "
-              f"thinking={'on' if meta.get('thinking') else 'off'}, wall time {fmt((meta.get('wall_s') or 0) / 3600, 2)} h")
-    if out.get("resolved") is not None:
-        md.append(f"\n**Resolved: {out['resolved']} / {out['submitted']}** "
-                  f"({100 * out['resolved'] / max(1, out['submitted']):.1f}%), empty patches: {out.get('empty_patches')}")
-    t = out.get("telemetry")
-    if t:
-        md += ["", f"{t['calls']} model calls, max context {t['max_context']} tokens, prefix-cache hit ratio "
-               f"{100 * t['prefix_cache_hit_ratio']:.0f}%" + (f", MTP acceptance {100 * t['mtp_acceptance']:.0f}%" if t.get("mtp_acceptance") else ""),
+    out.update(load(d / "meta.json") or {})
+    return out
+
+
+def swebench(run, S, md):
+    root = run / "swebench"
+    dirs = sorted(p for p in root.glob("*") if p.is_dir() and (p / "meta.json").exists()) if root.exists() else []
+    if not dirs:
+        return
+    res = {d.name: swebench_one(d) for d in dirs}
+    S["swebench"] = res
+    md += ["## Agentic coding: SWE-bench (mini-swe-agent, bash-only)", "",
+           "| model | subset | resolved | empty patches | MTP | thinking | wall h | model calls | max context |",
+           "|---|---|---:|---:|---|---|---:|---:|---:|"]
+    for m, o in res.items():
+        t = o.get("telemetry") or {}
+        resolved = (f"{o['resolved']} / {o['submitted']} ({100 * o['resolved'] / max(1, o['submitted']):.1f}%)"
+                    if o.get("resolved") is not None else "not evaluated")
+        md.append(f"| {m} | {o.get('subset')} | {resolved} | {o.get('empty_patches', '—')} | "
+                  f"{'on' if o.get('mtp') else 'off'} | {'on' if o.get('thinking') else 'off'} | "
+                  f"{fmt((o.get('wall_s') or 0) / 3600, 2)} | {t.get('calls', '—')} | {t.get('max_context', '—')} |")
+    for m, o in res.items():
+        t = o.get("telemetry")
+        if not t:
+            continue
+        md += ["", f"**{m}**: speed during the agent run by context size; prefix-cache hit ratio "
+               f"{100 * t['prefix_cache_hit_ratio']:.0f}%"
+               + (f", MTP acceptance {100 * t['mtp_acceptance']:.0f}%" if t.get("mtp_acceptance") else ""),
                "", "| context | calls | median TTFT s | new prompt tokens | prefill t/s | decode t/s |",
                "|---|---:|---:|---:|---:|---:|"]
         md += [f"| {b['range']} | {b['calls']} | {fmt(b['ttft_s'], 2)} | {fmt(b['new_prompt_tokens'], 0)} | "
@@ -188,16 +201,17 @@ def swebench(run, S, md):
 
 def evalplus(run, S, md):
     out = {}
-    for f in sorted((run / "evalplus").glob("*.log")):
-        t = f.read_text()
-        vals = re.findall(r"pass@1:\s*([\d.]+)", t)
+    for f in sorted((run / "evalplus").glob("*/*.log")):
+        vals = re.findall(r"pass@1:\s*([\d.]+)", f.read_text())
         if vals:
-            out[f.stem] = {"base_pass@1": float(vals[0]), "plus_pass@1": float(vals[1]) if len(vals) > 1 else None}
+            out.setdefault(f.parent.name, {})[f.stem] = {
+                "base_pass@1": float(vals[0]), "plus_pass@1": float(vals[1]) if len(vals) > 1 else None}
     S["evalplus"] = out
     if out:
-        md += ["## Coding: EvalPlus (greedy, pass@1)", "", "| dataset | base | plus |", "|---|---:|---:|"]
-        md += [f"| {k} | {fmt(100 * v['base_pass@1'])}% | {fmt(100 * v['plus_pass@1'] if v['plus_pass@1'] is not None else None)}% |"
-               for k, v in out.items()]
+        md += ["## Coding: EvalPlus (greedy, pass@1)", "", "| model | dataset | base | plus |", "|---|---|---:|---:|"]
+        for m, dss in out.items():
+            md += [f"| {m} | {k} | {fmt(100 * v['base_pass@1'])}% | "
+                   f"{fmt(100 * v['plus_pass@1'] if v['plus_pass@1'] is not None else None)}% |" for k, v in dss.items()]
         md.append("")
 
 
@@ -216,6 +230,46 @@ def power(run, S, md):
         md.append("")
 
 
+def comparison(S, env):
+    """One row per model: the headline numbers side by side."""
+    models = [m["label"] for m in env.get("models", [])] or sorted({r["model"] for r in S.get("llama_bench", [])})
+    if not models:
+        return []
+
+    def lb(m, test, depth=0):
+        for r in S.get("llama_bench", []):
+            if r["model"] == m and r["n_depth"] == depth and ((test == "pp" and r["n_prompt"]) or (test == "tg" and r["n_gen"])):
+                return r["avg_ts"]
+
+    def benchy_tg(label):
+        for b in (S.get("benchy", {}).get(label) or {}).get("benchmarks", []):
+            if not b.get("context_size") and b.get("concurrency", 1) == 1 and b.get("tg_throughput"):
+                return b["tg_throughput"]["mean"]
+
+    def ttft(label):
+        for b in (S.get("benchy", {}).get(label) or {}).get("benchmarks", []):
+            if not b.get("context_size") and b.get("concurrency", 1) == 1 and b.get("e2e_ttft"):
+                return b["e2e_ttft"]["mean"]
+
+    sizes = {m["label"]: m["bytes"] / 2**30 for m in env.get("models", [])}
+    depth = max([r["n_depth"] for r in S.get("llama_bench", [])] or [0])
+    md = ["## Comparison", "",
+          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | API tg | API tg MTP | API TTFT ms | HumanEval+ | SWE-bench |",
+          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for m in models:
+        ev = (S.get("evalplus", {}).get(m) or {}).get("humaneval") or {}
+        sw = (S.get("swebench") or {}).get(m) or {}
+        swr = f"{sw['resolved']}/{sw['submitted']}" if sw.get("resolved") is not None else "—"
+        md.append(f"| {m} | {fmt(sizes.get(m), 2)} | {fmt(lb(m, 'pp'))} | {fmt(lb(m, 'tg'))} | "
+                  f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(benchy_tg(f'llama.cpp-{m}'))} | "
+                  f"{fmt(benchy_tg(f'llama.cpp-{m}-mtp'))} | {fmt(ttft(f'llama.cpp-{m}'), 0)} | "
+                  f"{fmt(100 * ev['plus_pass@1']) + '%' if ev.get('plus_pass@1') is not None else '—'} | {swr} |")
+    md += ["", "pp/tg in tokens/s. llama-bench columns are the engine alone; API columns are llama-benchy "
+           "through llama-server (MTP column empty when the model has no MTP head).", ""]
+    md += [f"- `{m['label']}`: [{m['repo']}](https://huggingface.co/{m['repo']}) `{m['file']}`" for m in env.get("models", [])]
+    return md + [""]
+
+
 def main():
     run = pathlib.Path(sys.argv[1])
     env = load(run / "env.json") or {}
@@ -229,6 +283,7 @@ def main():
             fn(run, S, md)
         except Exception as e:  # keep collecting other sections
             md += [f"> {fn.__name__}: failed to parse ({e})", ""]
+    md[4:4] = comparison(S, env)
     (run / "summary.json").write_text(json.dumps(S, indent=2))
     (run / "summary.md").write_text("\n".join(md) + "\n")
     print(run / "summary.md")
