@@ -14,6 +14,7 @@ LLAMA_DIR="$VENDOR/llama.cpp"
 LLAMA_BIN="$LLAMA_DIR/build/bin"
 export HF_HOME="${HF_HOME:-$ROOT/models/.hf}"
 export HF_HUB_ENABLE_HF_TRANSFER=1
+export PYTHONUNBUFFERED=1   # Python tools write to log files; show progress as it happens
 # Local servers (llama-server, proxy, mlx_lm.server) must bypass any HTTP(S) proxy
 # for the Python clients too (server_bench, llama-benchy, mini-swe-agent, EvalPlus).
 export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}" no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"

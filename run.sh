@@ -119,7 +119,7 @@ run_benchy() {  # <label> <port> <served-model-name> <tokenizer> <depths> [extra
     --tokenizer "$tok" --book-url "$BENCHY_BOOK_URL" --pp $BENCHY_PP --tg "$BENCHY_TG" --depth $depths --runs "$LATENCY_REPS" \
     --latency-mode generation --exact-tg --extra-body 'chat_template_kwargs={"enable_thinking":false}' \
     --format json --save-result "$RUN/benchy/$label.json" "$@" \
-    >"$RUN/logs/benchy-$label.log" 2>&1 || warn "llama-benchy $label failed (logs/benchy-$label.log)"
+    >>"$RUN/logs/benchy-$label.log" 2>&1 || warn "llama-benchy $label failed (logs/benchy-$label.log)"
 }
 
 run_latency() {  # <label> <port> <served-model-name>
