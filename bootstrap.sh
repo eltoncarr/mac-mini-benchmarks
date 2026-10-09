@@ -59,6 +59,16 @@ if [[ $WANT_DOCKER == 1 ]]; then
     ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
     colima start --vm-type vz --vz-rosetta --cpu 6 --memory 12 --disk 200
   fi
+  if store="$(docker_broken_credstore)"; then
+    cp ~/.docker/config.json ~/.docker/config.json.bak
+    jq 'del(.credsStore)' ~/.docker/config.json.bak >~/.docker/config.json
+    log "Removed credsStore '$store' from ~/.docker/config.json (docker-credential-$store missing; backup: config.json.bak)"
+  fi
+  if docker run --rm --platform linux/amd64 busybox:1.36 uname -m 2>/dev/null | grep -q x86_64; then
+    log "Docker runs x86_64 containers (needed for SWE-bench)"
+  else
+    warn "Docker cannot run x86_64 containers yet; SWE-bench needs Rosetta/QEMU emulation (see README)"
+  fi
 fi
 
 # ---- 4. llama.cpp (Metal) ------------------------------------------------------

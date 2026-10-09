@@ -94,11 +94,26 @@ ensure_benchy_book() {
   log "llama-benchy text cached ($(wc -c <"$cache" | tr -d ' ') bytes): $cache"
 }
 
+# A leftover "credsStore" (e.g. "desktop" after switching from Docker Desktop to
+# Colima) whose docker-credential-<name> helper is missing breaks every image pull.
+# Prints the store name if it is broken.
+docker_broken_credstore() {
+  local cfg="$HOME/.docker/config.json" store
+  [[ -f "$cfg" ]] || return 1
+  store="$(jq -r '.credsStore // empty' "$cfg" 2>/dev/null)"
+  [[ -n "$store" ]] && ! command -v "docker-credential-$store" >/dev/null && echo "$store"
+}
+
 # SWE-bench images are x86_64 only; check Docker can run them before the agent starts.
 docker_amd64_ok() {
   local out
   if ! out="$(docker run --rm --platform linux/amd64 busybox:1.36 uname -m 2>&1)"; then
     warn "Docker cannot run linux/amd64 containers: $(tail -n 3 <<<"$out" | tr '\n' ' ')"
+    local store; store="$(docker_broken_credstore)" || true
+    if [[ -n "$store" ]]; then
+      warn "$HOME/.docker/config.json uses credsStore '$store' but docker-credential-$store is not installed."
+      warn "Fix: cp ~/.docker/config.json ~/.docker/config.json.bak && jq 'del(.credsStore)' ~/.docker/config.json.bak > ~/.docker/config.json"
+    fi
     return 1
   fi
   if [[ "$(tail -n1 <<<"$out")" != x86_64 ]]; then

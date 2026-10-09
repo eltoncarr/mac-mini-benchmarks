@@ -122,7 +122,10 @@ MEASURE_POWER=1               # run `sudo -v` before ./run.sh
   as on its leaderboard.
 - **Docker:** SWE-bench images are x86_64 only. They run under Rosetta through Colima
   (installed by `bootstrap.sh` when no Docker is running) or Docker Desktop/OrbStack
-  with Rosetta enabled.
+  with Rosetta enabled. Check with `docker run --rm --platform linux/amd64 busybox:1.36 uname -m`
+  (prints `x86_64`). If pulls fail with `docker-credential-desktop: executable file not found`,
+  `~/.docker/config.json` still points at Docker Desktop's credential helper; `bootstrap.sh`
+  removes that `credsStore` entry (backup in `config.json.bak`).
 
 ## Rough time and disk budget
 
