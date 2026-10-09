@@ -1,0 +1,12 @@
+# Versions are recorded into each results/<run>/env.json by run.sh.
+huggingface_hub[cli,hf_transfer]>=0.34
+pyyaml
+datasets
+# coding benchmark
+evalplus
+# agentic benchmark (SWE-bench)
+mini-swe-agent>=2.0
+swebench>=5.0
+sb-cli
+# optional MLX engine comparison (Apple silicon only)
+mlx-lm; sys_platform == "darwin" and platform_machine == "arm64"
