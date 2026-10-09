@@ -42,6 +42,9 @@ SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 cleanup() {
   local rc=$?
   trap - EXIT INT TERM
+  if (( rc != 0 )); then
+    echo "[$(date +%H:%M:%S)] error: run stopped early (exit $rc; Ctrl-C or a fatal error); later suites did not run" >>"$RUN/problems.log"
+  fi
   stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"
   python "$ROOT/bench/collect.py" "$RUN" >/dev/null 2>&1 || true
   if [[ -s "$RUN/problems.log" ]]; then
@@ -247,7 +250,8 @@ suite_agent() {  # <smoke|mini|verified>
     python "$ROOT/bench/telemetry_proxy.py" --listen "$PROXY_PORT" --upstream "http://127.0.0.1:$SERVER_PORT" \
       --log "$d/calls.jsonl" & PROXY_PID=$!
     python "$ROOT/bench/swe_config.py" --api-base "http://127.0.0.1:$PROXY_PORT/v1" --model "$MODEL_NAME-$m" \
-      --step-limit "$SWE_STEP_LIMIT" --thinking "$AGENT_THINKING" --out "$d/mini-swe-agent.yaml"
+      --step-limit "$SWE_STEP_LIMIT" --thinking "$AGENT_THINKING" \
+      --max-tokens "$AGENT_MAX_TOKENS" --timeout "$AGENT_TIMEOUT_S" --out "$d/mini-swe-agent.yaml"
     log "mini-swe-agent on SWE-bench [$subset] with $m (mtp=$SERVED_MTP, $np worker(s))"
     local t0=$SECONDS
     MSWEA_COST_TRACKING=ignore_errors mini-extra swebench --subset "$ds" --split test \

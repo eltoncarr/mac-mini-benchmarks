@@ -16,6 +16,8 @@ ap.add_argument("--api-base", required=True)
 ap.add_argument("--model", required=True)
 ap.add_argument("--step-limit", type=int, default=100)
 ap.add_argument("--thinking", type=int, default=1)
+ap.add_argument("--max-tokens", type=int, default=16384)
+ap.add_argument("--timeout", type=int, default=3600)
 ap.add_argument("--out", required=True)
 a = ap.parse_args()
 
@@ -32,6 +34,7 @@ model = cfg.setdefault("model", {})
 model["model_name"] = f"openai/{a.model}"
 model.setdefault("model_kwargs", {}).update({
     "api_base": a.api_base, "api_key": "local", "drop_params": True, **sampling,
+    "max_tokens": a.max_tokens, "timeout": a.timeout,
     "extra_body": {"top_k": 20, "chat_template_kwargs": {"enable_thinking": bool(a.thinking)}},
 })
 model["cost_tracking"] = "ignore_errors"
