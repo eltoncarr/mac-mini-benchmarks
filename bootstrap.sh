@@ -7,11 +7,12 @@
 #   ./bootstrap.sh --no-download   # tools only, no model downloads
 #   ./bootstrap.sh --model q8_0    # download only this GGUF model (repeatable; default: all)
 #   ./bootstrap.sh --wired-limit   # raise the GPU wired-memory limit (sudo, until reboot)
+#   ./bootstrap.sh --update-llama  # pull and rebuild llama.cpp master (otherwise kept as is)
 #
 # Safe to re-run: every step is skipped when already done.
 source "$(dirname "$0")/scripts/lib.sh"
 
-WANT_DOCKER=1 WANT_MLX=1 WANT_DOWNLOAD=1 WANT_WIRED=0 ONLY_MODELS=""
+WANT_DOCKER=1 WANT_MLX=1 WANT_DOWNLOAD=1 WANT_WIRED=0 ONLY_MODELS="" UPDATE_LLAMA=0
 while (( $# )); do
   a="$1"; shift
   case "$a" in
@@ -20,7 +21,8 @@ while (( $# )); do
     --no-mlx) WANT_MLX=0 ;;
     --no-download) WANT_DOWNLOAD=0 ;;
     --wired-limit) WANT_WIRED=1 ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --update-llama) UPDATE_LLAMA=1 ;;
+    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
     *) die "unknown flag: $a" ;;
   esac
 done
@@ -65,11 +67,17 @@ if [[ ! -d "$LLAMA_DIR/.git" ]]; then
   log "Cloning llama.cpp"
   git clone --quiet https://github.com/ggml-org/llama.cpp "$LLAMA_DIR"
 fi
-git -C "$LLAMA_DIR" fetch --quiet --tags origin
-if [[ "$LLAMA_CPP_REF" == master ]]; then
-  git -C "$LLAMA_DIR" checkout --quiet master && git -C "$LLAMA_DIR" pull --quiet --ff-only
+# Keep an existing build unless asked: re-running bootstrap (e.g. to add a model)
+# must not silently change the engine between benchmark passes.
+if [[ -x "$LLAMA_BIN/llama-server" && $UPDATE_LLAMA == 0 && "$LLAMA_CPP_REF" == master ]]; then
+  log "Keeping llama.cpp @ $(git -C "$LLAMA_DIR" rev-parse --short HEAD) (--update-llama to pull master)"
 else
-  git -C "$LLAMA_DIR" checkout --quiet "$LLAMA_CPP_REF"
+  git -C "$LLAMA_DIR" fetch --quiet --tags origin
+  if [[ "$LLAMA_CPP_REF" == master ]]; then
+    git -C "$LLAMA_DIR" checkout --quiet master && git -C "$LLAMA_DIR" pull --quiet --ff-only
+  else
+    git -C "$LLAMA_DIR" checkout --quiet "$LLAMA_CPP_REF"
+  fi
 fi
 log "Building llama.cpp @ $(git -C "$LLAMA_DIR" rev-parse --short HEAD)"
 cmake -S "$LLAMA_DIR" -B "$LLAMA_DIR/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \

@@ -16,8 +16,16 @@ export HF_HOME="${HF_HOME:-$ROOT/models/.hf}"
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
 log()  { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
-warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*" >&2; }
-die()  { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; exit 1; }
+# During a run, warnings and errors are also kept in $RUN/problems.log for summary.md.
+warn() {
+  printf '\033[1;33m[warn]\033[0m %s\n' "$*" >&2
+  if [[ -n "${RUN:-}" && -d "${RUN:-}" ]]; then echo "[$(date +%H:%M:%S)] warn: $*" >>"$RUN/problems.log"; fi
+}
+die() {
+  printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2
+  if [[ -n "${RUN:-}" && -d "${RUN:-}" ]]; then echo "[$(date +%H:%M:%S)] error: $*" >>"$RUN/problems.log"; fi
+  exit 1
+}
 
 activate_venv() {
   [[ -x "$VENV/bin/python" ]] || die "No venv at $VENV. Run ./bootstrap.sh first."

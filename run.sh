@@ -38,7 +38,18 @@ RUN="$(mkdir -p "$RUN" && cd "$RUN" && pwd)"
 mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,power,logs}
 SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 
-cleanup() { stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"; }
+# Always stop servers and write summary.md, also when a step dies part-way.
+cleanup() {
+  local rc=$?
+  trap - EXIT INT TERM
+  stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"
+  python "$ROOT/bench/collect.py" "$RUN" >/dev/null 2>&1 || true
+  if [[ -s "$RUN/problems.log" ]]; then
+    warn "Run finished with problems (rc=$rc); see $RUN/problems.log and $RUN/logs/"
+  fi
+  log "Summary: $RUN/summary.md"
+  exit "$rc"
+}
 trap cleanup EXIT INT TERM
 caffeinate -dimsu -w $$ &   # keep the Mac awake for the whole run
 
@@ -294,5 +305,3 @@ case "$SUITE" in
   *) die "unknown suite: $SUITE (quick|standard|full|perf|ref4167|server|mlx|coding|agent|collect|compare)" ;;
 esac
 
-python "$ROOT/bench/collect.py" "$RUN"
-log "Done. Summary: $RUN/summary.md"

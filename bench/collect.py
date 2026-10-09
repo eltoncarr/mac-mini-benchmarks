@@ -327,7 +327,13 @@ def main():
         return compare(sys.argv[2], [pathlib.Path(r) for r in sys.argv[3:]])
     run = pathlib.Path(sys.argv[1])
     S, env, body = gather(run)
-    md = header(env, run.name) + comparison(S, env) + body
+    md = header(env, run.name)
+    probs = (run / "problems.log").read_text().strip().splitlines() if (run / "problems.log").exists() else []
+    if probs:
+        md += ["## Problems during this run", "", "Steps below failed or were skipped; their sections are missing. "
+               "Details in `logs/`.", "", "```", *probs, "```", ""]
+    S["problems"] = probs
+    md += comparison(S, env) + body
     (run / "summary.json").write_text(json.dumps(S, indent=2))
     (run / "summary.md").write_text("\n".join(md) + "\n")
     print(run / "summary.md")
