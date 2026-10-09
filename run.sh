@@ -106,6 +106,13 @@ TOKENIZER="$MODELS/tokenizer"
 
 run_benchy() {  # <label> <port> <served-model-name> <tokenizer> <depths> [extra llama-benchy args...]
   local label="$1" port="$2" served="$3" tok="$4" depths="$5"; shift 5
+  # llama-server (not mlx_lm.server) can count tokens itself: make sure llama-benchy's
+  # local tokenizer agrees, otherwise its prompt sizes would be wrong.
+  if [[ "$port" == "$SERVER_PORT" ]] && ! python "$ROOT/bench/tokenizer_fix.py" check "$tok" \
+       --server "http://127.0.0.1:$port" --text "$(benchy_book_path)" >>"$RUN/logs/benchy-$label.log" 2>&1; then
+    warn "llama-benchy $label skipped: local tokenizer disagrees with llama-server (logs/benchy-$label.log)"
+    return 0
+  fi
   log "llama-benchy $label (depths $depths)"
   # shellcheck disable=SC2086  # word-split the space-separated lists
   llama-benchy --base-url "http://127.0.0.1:$port/v1" --model "$MODEL_NAME" --served-model-name "$served" \
@@ -153,7 +160,8 @@ suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
   # Thinking off at the server, so every request (incl. llama-benchy's warmup and
   # coherence check, which don't get --extra-body) answers directly.
   local nothink=(--chat-template-kwargs '{"enable_thinking": false}')
-  [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
+  python "$ROOT/bench/tokenizer_fix.py" ensure "$TOKENIZER" >/dev/null \
+    || die "No usable tokenizer in $TOKENIZER; run ./bootstrap.sh"
   ensure_benchy_book || warn "llama-benchy runs will likely fail (no prompt text)"
   for m in $MODELS_SEL; do
     if start_model_server "$m" plain 0 -c "$SERVER_CTX" -np 1 "${nothink[@]}"; then

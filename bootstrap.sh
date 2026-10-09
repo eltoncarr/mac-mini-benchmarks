@@ -114,11 +114,18 @@ if [[ $WANT_DOWNLOAD == 1 ]]; then
     hf download "$(model_repo "$m")" --local-dir "$(model_dir "$m")" --include "$(model_glob "$m")"
     [[ -n "$(model_path "$m")" ]] || die "No file matching $(model_glob "$m") in $(model_repo "$m"); check GGUF_MODELS"
   done
-  if [[ -z "$(ls "$MODELS/tokenizer"/tokenizer*.json 2>/dev/null)" ]]; then
+  if [[ ! -f "$MODELS/tokenizer/tokenizer.json" ]]; then
     log "Downloading tokenizer from $TOKENIZER_REPO (for llama-benchy)"
     hf download "$TOKENIZER_REPO" --local-dir "$MODELS/tokenizer" \
-      --include "tokenizer*" "vocab*" "merges*" "special_tokens_map.json" "config.json" "*.jinja" >/dev/null
+      --include "tokenizer*" "vocab*" "merges*" "special_tokens_map.json" "config.json" "*.jinja" >/dev/null || true
   fi
+  if [[ ! -f "$MODELS/tokenizer/tokenizer.json" ]]; then
+    # Some Qwen repos ship no tokenizer.json; try unsloth's copy of the original weights.
+    hf download "${TOKENIZER_REPO/#Qwen\//unsloth/}" --local-dir "$MODELS/tokenizer" \
+      --include "tokenizer.json" "tokenizer_config.json" >/dev/null 2>&1 || true
+  fi
+  # Otherwise build tokenizer.json from vocab.json + merges.txt (checked against llama-server at run time).
+  python "$ROOT/bench/tokenizer_fix.py" ensure "$MODELS/tokenizer" || die "No usable tokenizer in $MODELS/tokenizer"
   if [[ $WANT_MLX == 1 && -n "$MLX_REPO" ]]; then
     log "Downloading $MLX_REPO"
     hf download "$MLX_REPO" --local-dir "$MODELS/mlx/${MLX_REPO//\//__}" >/dev/null

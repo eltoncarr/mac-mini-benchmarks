@@ -114,8 +114,9 @@ MEASURE_POWER=1               # run `sudo -v` before ./run.sh
 - **llama-bench vs llama-benchy:** `llama-bench` measures the engine directly and is
   what the Apple Silicon tables use. llama-benchy measures the same pp/tg through the
   server API, which is what an app or agent actually sees, and works the same way for
-  llama.cpp and MLX. It needs the model's tokenizer (`models/tokenizer`, downloaded by
-  `bootstrap.sh`) and downloads its book text once on first use.
+  llama.cpp and MLX. It needs the model's tokenizer (`models/tokenizer`, set up by `bootstrap.sh`;
+  built from `vocab.json` + `merges.txt` if the repo has no `tokenizer.json`, and checked
+  against llama-server's own token count before each run) and downloads its book text once on first use.
 - **Sampling:** the server suite turns thinking off and forces fixed output lengths so
   the runs are comparable. The agent uses Qwen's recommended thinking-mode
   sampling (temp 1.0, top-p 0.95, top-k 20). EvalPlus is greedy with thinking off,
@@ -157,6 +158,7 @@ config.env              all settings
 bench/server_bench.py   short-chat ITL percentiles / TPOT (complements llama-benchy)
 bench/telemetry_proxy.py  logs llama.cpp timings for every agent request
 bench/swe_config.py     mini-swe-agent config for the local model
+bench/tokenizer_fix.py  builds/validates the tokenizer.json llama-benchy needs
 bench/collect.py        builds summary.md / summary.json
 bench/sysinfo.py        env.json
 results/<run>/          raw JSON/logs + summary.md (trajectories and eval logs are git-ignored)

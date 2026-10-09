@@ -79,8 +79,12 @@ start_llama_server() {
 
 # Make sure llama-benchy's cache holds a real copy of BENCHY_BOOK_URL (it would
 # otherwise download it itself and fail on an empty or HTML response).
+benchy_book_path() {
+  echo "$HOME/.cache/llama-benchy/$(python3 -c 'import hashlib,sys; print(hashlib.md5(sys.argv[1].encode()).hexdigest())' "$BENCHY_BOOK_URL").txt"
+}
+
 ensure_benchy_book() {
-  local cache; cache="$HOME/.cache/llama-benchy/$(python3 -c 'import hashlib,sys; print(hashlib.md5(sys.argv[1].encode()).hexdigest())' "$BENCHY_BOOK_URL").txt"
+  local cache; cache="$(benchy_book_path)"
   if [[ -s "$cache" ]] && (( $(wc -c <"$cache") > 100000 )); then return 0; fi
   mkdir -p "$(dirname "$cache")"
   local tmp="$cache.tmp"
