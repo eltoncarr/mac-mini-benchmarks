@@ -77,6 +77,36 @@ start_llama_server() {
   log "llama-server up (pid $SERVER_PID): $*"
 }
 
+# Make sure llama-benchy's cache holds a real copy of BENCHY_BOOK_URL (it would
+# otherwise download it itself and fail on an empty or HTML response).
+ensure_benchy_book() {
+  local cache; cache="$HOME/.cache/llama-benchy/$(python3 -c 'import hashlib,sys; print(hashlib.md5(sys.argv[1].encode()).hexdigest())' "$BENCHY_BOOK_URL").txt"
+  if [[ -s "$cache" ]] && (( $(wc -c <"$cache") > 100000 )); then return 0; fi
+  mkdir -p "$(dirname "$cache")"
+  local tmp="$cache.tmp"
+  curl -fsSL --retry 3 -A "Mozilla/5.0 (mac-mini-benchmarks)" "$BENCHY_BOOK_URL" -o "$tmp" \
+    || { rm -f "$tmp"; warn "could not download $BENCHY_BOOK_URL"; return 1; }
+  if (( $(wc -c <"$tmp") < 100000 )) || ! grep -q "START OF TH" "$tmp"; then
+    rm -f "$tmp"; warn "$BENCHY_BOOK_URL did not return a Gutenberg plain-text book"; return 1
+  fi
+  # same cleanup llama-benchy applies: start at the Gutenberg START marker
+  awk 'found || /\*\*\* START OF TH/ {found=1; print}' "$tmp" >"$cache" && rm -f "$tmp"
+  log "llama-benchy text cached ($(wc -c <"$cache" | tr -d ' ') bytes): $cache"
+}
+
+# SWE-bench images are x86_64 only; check Docker can run them before the agent starts.
+docker_amd64_ok() {
+  local out
+  if ! out="$(docker run --rm --platform linux/amd64 busybox:1.36 uname -m 2>&1)"; then
+    warn "Docker cannot run linux/amd64 containers: $(tail -n 3 <<<"$out" | tr '\n' ' ')"
+    return 1
+  fi
+  if [[ "$(tail -n1 <<<"$out")" != x86_64 ]]; then
+    warn "amd64 test container reported '$(tail -n1 <<<"$out")', expected x86_64"
+    return 1
+  fi
+}
+
 # True if the running server actually drafts with MTP (llama.cpp reports draft_n).
 mtp_active() {
   local n

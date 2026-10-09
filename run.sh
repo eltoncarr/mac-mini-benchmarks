@@ -106,7 +106,7 @@ run_benchy() {  # <label> <port> <served-model-name> <tokenizer> <depths> [extra
   log "llama-benchy $label (depths $depths)"
   # shellcheck disable=SC2086  # word-split the space-separated lists
   llama-benchy --base-url "http://127.0.0.1:$port/v1" --model "$MODEL_NAME" --served-model-name "$served" \
-    --tokenizer "$tok" --pp $BENCHY_PP --tg "$BENCHY_TG" --depth $depths --runs "$LATENCY_REPS" \
+    --tokenizer "$tok" --book-url "$BENCHY_BOOK_URL" --pp $BENCHY_PP --tg "$BENCHY_TG" --depth $depths --runs "$LATENCY_REPS" \
     --latency-mode generation --exact-tg --extra-body 'chat_template_kwargs={"enable_thinking":false}' \
     --format json --save-result "$RUN/benchy/$label.json" "$@" \
     >"$RUN/logs/benchy-$label.log" 2>&1 || warn "llama-benchy $label failed (logs/benchy-$label.log)"
@@ -151,6 +151,7 @@ suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
   # coherence check, which don't get --extra-body) answers directly.
   local nothink=(--chat-template-kwargs '{"enable_thinking": false}')
   [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
+  ensure_benchy_book || warn "llama-benchy runs will likely fail (no prompt text)"
   for m in $MODELS_SEL; do
     if start_model_server "$m" plain 0 -c "$SERVER_CTX" -np 1 "${nothink[@]}"; then
       start_power "$RUN/power/server-$m.txt"
@@ -194,6 +195,7 @@ suite_mlx() {
   fi
   mlx_lm.server --model "$m" --host 127.0.0.1 --port "$MLX_PORT" >"$RUN/logs/mlx-server.log" 2>&1 &
   MLX_PID=$!
+  ensure_benchy_book || warn "llama-benchy runs will likely fail (no prompt text)"
   if wait_for_http "http://127.0.0.1:$MLX_PORT/v1/models" 600; then
     # mlx_lm.server has no prompt cache opt-out; llama-benchy still makes every request unique.
     run_benchy "mlx-4bit" "$MLX_PORT" "$m" "$m" "0 4096 16384 32768" --no-cache
@@ -226,6 +228,11 @@ suite_coding() {  # <datasets>
 suite_agent() {  # <smoke|mini|verified>
   local subset="$1" ds args=() m
   docker info >/dev/null 2>&1 || die "Docker is not running (needed for SWE-bench). Start Docker/Colima."
+  if ! docker_amd64_ok; then
+    warn "Enable x86_64 emulation: Docker Desktop > Settings > General > 'Use Rosetta for x86_64/amd64 emulation',"
+    warn "or recreate Colima with: colima delete && colima start --vm-type vz --vz-rosetta --cpu 6 --memory 12 --disk 200"
+    die "SWE-bench skipped: Docker cannot run the x86_64 SWE-bench images"
+  fi
   case "$subset" in
     smoke)    ds=verified; args=(--filter "^${SWE_SMOKE_INSTANCE}\$") ;;
     mini)     ds=MariusHobbhahn/swe-bench-verified-mini ;;
