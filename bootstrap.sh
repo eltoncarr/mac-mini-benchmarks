@@ -94,6 +94,11 @@ if [[ $WANT_DOWNLOAD == 1 ]]; then
       --include "*-${q}.gguf" "*-${q}-*-of-*.gguf" "${q}/*.gguf"
     [[ -n "$(gguf_path "$q")" ]] || die "No GGUF matching $q in $GGUF_REPO; check GGUF_QUANTS"
   done
+  if [[ -z "$(ls "$MODELS/tokenizer"/tokenizer*.json 2>/dev/null)" ]]; then
+    log "Downloading tokenizer from $TOKENIZER_REPO (for llama-benchy)"
+    hf download "$TOKENIZER_REPO" --local-dir "$MODELS/tokenizer" \
+      --include "tokenizer*" "vocab*" "merges*" "special_tokens_map.json" "config.json" "*.jinja" >/dev/null
+  fi
   if [[ $WANT_MLX == 1 && -n "$MLX_REPO" ]]; then
     log "Downloading $MLX_REPO"
     hf download "$MLX_REPO" --local-dir "$MODELS/mlx/${MLX_REPO//\//__}" >/dev/null

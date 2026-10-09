@@ -18,10 +18,6 @@ def fmt(x, nd=1):
     return "—" if x is None else f"{x:.{nd}f}"
 
 
-def med(d, k):
-    return ((d or {}).get(k) or {}).get("median")
-
-
 def llama_bench(run, S, md):
     rows = []
     for f in sorted((run / "llama_bench").glob("*.json")):
@@ -63,41 +59,57 @@ def mlx(run, S, md):
         md.append("")
 
 
+def benchy(run, S, md):
+    out = {}
+    for f in sorted((run / "benchy").glob("*.json")):
+        d = load(f)
+        if d:
+            out[f.stem] = d
+    S["benchy"] = out
+    if not out:
+        return
+    md += ["## llama-benchy (OpenAI API, llama-bench style)", "",
+           "pp/tg in t/s (mean ± std); latencies in ms. TTFR = time to first response, "
+           "est_ppt = estimated prompt processing time, e2e_ttft = end-to-end time to first token.", "",
+           "| config | test | t/s | ± | peak t/s | TTFR | est_ppt | e2e_ttft |", "|---|---|---:|---:|---:|---:|---:|---:|"]
+
+    def m(b, k):
+        return (b.get(k) or {}).get("mean")
+
+    def sd(b, k):
+        return (b.get(k) or {}).get("std")
+    for label, d in out.items():
+        for b in d.get("benchmarks", []):
+            at = f" @ d{b['context_size']}" if b.get("context_size") else ""
+            cc = f" (c{b['concurrency']})" if b.get("concurrency", 1) > 1 else ""
+            lat = f"{fmt(m(b, 'ttfr'), 0)} | {fmt(m(b, 'est_ppt'), 0)} | {fmt(m(b, 'e2e_ttft'), 0)}"
+            if b.get("is_context_prefill_phase"):
+                md.append(f"| {label} | ctx_pp{at}{cc} | {fmt(m(b, 'pp_throughput'), 2)} | {fmt(sd(b, 'pp_throughput'), 2)} | — | {lat} |")
+                continue
+            if m(b, "pp_throughput") is not None:
+                md.append(f"| {label} | pp{b['prompt_size']}{at}{cc} | {fmt(m(b, 'pp_throughput'), 2)} | "
+                          f"{fmt(sd(b, 'pp_throughput'), 2)} | — | {lat} |")
+            if m(b, "tg_throughput") is not None:
+                md.append(f"| {label} | tg{b['response_size']}{at}{cc} | {fmt(m(b, 'tg_throughput'), 2)} | "
+                          f"{fmt(sd(b, 'tg_throughput'), 2)} | {fmt(m(b, 'peak_throughput'), 2)} | | | |")
+    v = next(iter(out.values()))
+    md += ["", f"llama-benchy {v.get('version')}, latency mode `{v.get('latency_mode')}`", ""]
+
+
 def server(run, S, md):
     out = {}
     for f in sorted((run / "server").glob("*.json")):
         d = load(f)
-        if d:
-            out[f.stem] = d
-    S["server"] = {k: {n: (v.get("summary") if isinstance(v, dict) and "summary" in v else v)
-                       for n, v in d["scenarios"].items()} for k, d in out.items()}
+        if d and "summary" in d:
+            out[f.stem] = d["summary"]
+    S["server"] = out
     if not out:
         return
-    md += ["## Server latency (OpenAI-compatible API, streaming)", "",
-           "### Short chat (256 output tokens)", "",
-           "| config | TTFT s | decode t/s | TPOT ms | ITL p50 / p99 ms | e2e s |", "|---|---:|---:|---:|---:|---:|"]
-    for k, d in out.items():
-        s = (d["scenarios"].get("short") or {}).get("summary")
-        if s:
-            md.append(f"| {k} | {fmt(med(s, 'ttft_s'), 3)} | {fmt(med(s, 'decode_tps'))} | {fmt(med(s, 'tpot_ms'))} | "
-                      f"{fmt(med(s, 'itl_p50_ms'))} / {fmt(med(s, 'itl_p99_ms'))} | {fmt(med(s, 'e2e_s'), 2)} |")
-    md += ["", "### Long context (prompt built from real source code, 64 output tokens)", "",
-           "| config | prompt tokens | TTFT s | prefill t/s | decode t/s |", "|---|---:|---:|---:|---:|"]
-    for k, d in out.items():
-        for n, v in (d["scenarios"].get("longctx") or {}).items():
-            s = v["summary"]
-            md.append(f"| {k} | {n} | {fmt(med(s, 'ttft_s'), 2)} | {fmt(med(s, 'prefill_tps'))} | {fmt(med(s, 'decode_tps'))} |")
-    for k, d in out.items():
-        c = d["scenarios"].get("cache")
-        if c:
-            md += ["", f"Prompt cache ({k}, {c['prefix_tokens']} token prefix): cold TTFT {fmt(c['cold']['ttft_s'], 2)} s, "
-                   f"warm TTFT {fmt(c['warm']['ttft_s'], 2)} s ({fmt(c['ttft_speedup'])}x)"]
-    conc = [(k, d["scenarios"]["concurrency"]) for k, d in out.items() if d["scenarios"].get("concurrency")]
-    if conc:
-        md += ["", "### Concurrency (256 output tokens each)", "", "| config | parallel | aggregate t/s | median TTFT s |",
-               "|---|---:|---:|---:|"]
-        for k, c in conc:
-            md += [f"| {k} | {lvl} | {fmt(v['aggregate_tps'])} | {fmt(med(v['summary'], 'ttft_s'), 2)} |" for lvl, v in c.items()]
+    md += ["## Short-chat streaming latency (256 output tokens, thinking off)", "",
+           "| config | TTFT s | decode t/s | TPOT ms | ITL p50 / p90 / p99 ms | e2e s |", "|---|---:|---:|---:|---:|---:|"]
+    for k, s in out.items():
+        md.append(f"| {k} | {fmt(s.get('ttft_s'), 3)} | {fmt(s.get('decode_tps'))} | {fmt(s.get('tpot_ms'))} | "
+                  f"{fmt(s.get('itl_p50_ms'))} / {fmt(s.get('itl_p90_ms'))} / {fmt(s.get('itl_p99_ms'))} | {fmt(s.get('e2e_s'), 2)} |")
     md.append("")
 
 
@@ -212,7 +224,7 @@ def main():
           f"({env.get('machine', {}).get('chip', '?')}, {env.get('machine', {}).get('memory_gb', '?')} GB)", "",
           f"Run `{run.name}` · macOS {env.get('machine', {}).get('macos', '?')} · "
           f"GPU cores {env.get('machine', {}).get('gpu_cores', '?')} · llama.cpp `{env.get('llama_cpp_commit', '?')}`", ""]
-    for fn in (llama_bench, mlx, server, evalplus, swebench, power):
+    for fn in (llama_bench, benchy, server, mlx, evalplus, swebench, power):
         try:
             fn(run, S, md)
         except Exception as e:  # keep collecting other sections

@@ -32,7 +32,7 @@ def main(out, llama_dir, model, extra):
     except Exception:
         pass
     pkgs = {}
-    for p in ["mlx", "mlx-lm", "mini-swe-agent", "swebench", "evalplus", "litellm", "huggingface_hub"]:
+    for p in ["mlx", "mlx-lm", "mini-swe-agent", "swebench", "evalplus", "llama-benchy", "litellm", "huggingface_hub"]:
         try:
             pkgs[p] = metadata.version(p)
         except metadata.PackageNotFoundError:

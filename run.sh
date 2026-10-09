@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Run benchmark suites and collect results into results/<run>/.
 #
-#   ./run.sh quick      # ~30-60 min: llama-bench, server latency, 1 SWE-bench task
-#   ./run.sh standard   # overnight: + all quants, depth sweep, MTP on/off, MLX,
+#   ./run.sh quick      # ~30-90 min: llama-bench, llama-benchy, 1 SWE-bench task
+#   ./run.sh standard   # overnight: + all quants, depth sweeps, MTP on/off, MLX,
 #                       #   #4167 reference, EvalPlus, SWE-bench Verified Mini (50)
 #   ./run.sh full       # days: standard + SWE-bench Verified (500) + MBPP+
 #
@@ -19,11 +19,10 @@ if [[ "$SUITE" == collect ]]; then python "$ROOT/bench/collect.py" "${2:?run dir
 STAMP="$(date +%Y%m%d-%H%M)"
 RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${MODEL_NAME}_${SUITE}}"
 RUN="$(mkdir -p "$RUN" && cd "$RUN" && pwd)"
-mkdir -p "$RUN"/{llama_bench,server,mlx,evalplus,swebench,power,logs}
+mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,power,logs}
 PRIMARY="$(primary_quant)"
 PRIMARY_GGUF="$(gguf_path "$PRIMARY")"
 [[ -n "$PRIMARY_GGUF" ]] || die "Primary quant $PRIMARY not downloaded; run ./bootstrap.sh"
-CORPUS="$LLAMA_DIR/src"
 SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 
 cleanup() { stop_power; stop_pid "$PROXY_PID"; stop_pid "$SERVER_PID"; stop_pid "$MLX_PID"; }
@@ -70,40 +69,60 @@ suite_ref4167() {
     >"$RUN/llama_bench/4167.md" 2>"$RUN/logs/ref4167.log" || warn "reference run failed"
 }
 
-# ---- server: TTFT / TPOT / ITL / prefill at depth / cache / concurrency ----------
-run_server_bench() {  # <label> <scenarios> [extra server_bench args...]
-  local label="$1" scen="$2"; shift 2
-  python "$ROOT/bench/server_bench.py" --engine llama --model "$MODEL_NAME" \
-    --base-url "http://127.0.0.1:$SERVER_PORT/v1" --label "$label" --scenarios "$scen" \
-    --reps "$LATENCY_REPS" --sizes "$LONGCTX_SIZES" --concurrency "$CONCURRENCY_LEVELS" \
-    --corpus "$CORPUS" --no-think --out "$RUN/server/$label.json" "$@" \
-    || warn "server bench $label failed"
+# ---- server: llama-benchy (pp/tg at depth, TTFT, concurrency, prefix cache) ----
+#      + server_bench.py (short-chat inter-token latency percentiles)
+TOKENIZER="$MODELS/tokenizer"
+
+run_benchy() {  # <label> <port> <served-model-name> <tokenizer> <depths> [extra llama-benchy args...]
+  local label="$1" port="$2" served="$3" tok="$4" depths="$5"; shift 5
+  log "llama-benchy $label (depths $depths)"
+  # shellcheck disable=SC2086  # word-split the space-separated lists
+  llama-benchy --base-url "http://127.0.0.1:$port/v1" --model "$MODEL_NAME" --served-model-name "$served" \
+    --tokenizer "$tok" --pp $BENCHY_PP --tg "$BENCHY_TG" --depth $depths --runs "$LATENCY_REPS" \
+    --latency-mode generation --exact-tg --extra-body 'chat_template_kwargs={"enable_thinking":false}' \
+    --format json --save-result "$RUN/benchy/$label.json" "$@" \
+    >"$RUN/logs/benchy-$label.log" 2>&1 || warn "llama-benchy $label failed (logs/benchy-$label.log)"
 }
 
-suite_server() {
-  local quants="$1" full="$2"
+run_latency() {  # <label> <port> <served-model-name>
+  python "$ROOT/bench/server_bench.py" --base-url "http://127.0.0.1:$2/v1" --model "$3" --label "$1" \
+    --reps "$LATENCY_REPS" --out "$RUN/server/$1.json" || warn "server latency $1 failed"
+}
+
+suite_server() {  # <quants> <depths> <full: 1 adds prefix-cache + concurrency runs>
+  local quants="$1" depths="$2" full="$3"
+  [[ -d "$TOKENIZER" ]] || die "Tokenizer missing at $TOKENIZER; run ./bootstrap.sh"
   for q in $quants; do
     local g; g="$(gguf_path "$q")"; [[ -n "$g" ]] || continue
     start_llama_server "$g" "$RUN/logs/server-$q.log" -c "$SERVER_CTX" -np 1
     start_power "$RUN/power/server-$q.txt"
-    run_server_bench "llama.cpp-$q" "short,longctx$([[ $full == 1 && $q == "$PRIMARY" ]] && echo ,cache)"
-    stop_power; stop_pid "$SERVER_PID"; SERVER_PID=""
+    run_benchy "llama.cpp-$q" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
+    run_latency "llama.cpp-$q" "$SERVER_PORT" "$MODEL_NAME"
+    stop_power
+    if [[ $full == 1 && $q == "$PRIMARY" ]]; then
+      run_benchy "llama.cpp-$q-prefix-cache" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "4096 16384 32768" \
+        --enable-prefix-caching
+    fi
+    stop_pid "$SERVER_PID"; SERVER_PID=""
   done
   if (( ${#MTP_ARGS[@]} )); then
-    start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-$PRIMARY-mtp.log" -c "$SERVER_CTX" -np 1 ${MTP_ARGS[@]+"${MTP_ARGS[@]}"}
+    start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-$PRIMARY-mtp.log" -c "$SERVER_CTX" -np 1 "${MTP_ARGS[@]}"
     start_power "$RUN/power/server-$PRIMARY-mtp.txt"
-    run_server_bench "llama.cpp-$PRIMARY-mtp" "short$([[ $full == 1 ]] && echo ,longctx)"
+    run_benchy "llama.cpp-$PRIMARY-mtp" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "$depths" --no-cache
+    run_latency "llama.cpp-$PRIMARY-mtp" "$SERVER_PORT" "$MODEL_NAME"
     stop_power; stop_pid "$SERVER_PID"; SERVER_PID=""
   fi
   if [[ $full == 1 ]]; then
-    local np=4
+    local np; np="$(echo "$CONCURRENCY_LEVELS" | tr ' ' '\n' | sort -n | tail -n1)"
     start_llama_server "$PRIMARY_GGUF" "$RUN/logs/server-$PRIMARY-np$np.log" -c $((np * 16384)) -np "$np"
-    run_server_bench "llama.cpp-$PRIMARY-np$np" "concurrency"
+    # shellcheck disable=SC2086
+    run_benchy "llama.cpp-$PRIMARY-concurrency" "$SERVER_PORT" "$MODEL_NAME" "$TOKENIZER" "0 4096" \
+      --no-cache --concurrency $CONCURRENCY_LEVELS
     stop_pid "$SERVER_PID"; SERVER_PID=""
   fi
 }
 
-# ---- mlx: mlx_lm.benchmark + mlx_lm.server latency --------------------------------
+# ---- mlx: mlx_lm.benchmark + the same server suite against mlx_lm.server ---------
 suite_mlx() {
   local m="$MODELS/mlx/${MLX_REPO//\//__}"
   [[ -n "$MLX_REPO" && -d "$m" ]] || { warn "MLX model not downloaded; skipping"; return; }
@@ -117,9 +136,9 @@ suite_mlx() {
   mlx_lm.server --model "$m" --host 127.0.0.1 --port "$MLX_PORT" >"$RUN/logs/mlx-server.log" 2>&1 &
   MLX_PID=$!
   if wait_for_http "http://127.0.0.1:$MLX_PORT/v1/models" 600; then
-    python "$ROOT/bench/server_bench.py" --engine mlx --model "$m" --base-url "http://127.0.0.1:$MLX_PORT/v1" \
-      --label "mlx-4bit" --scenarios short,longctx --reps "$LATENCY_REPS" --sizes "1024 4096 16384 32768" \
-      --corpus "$CORPUS" --no-think --out "$RUN/server/mlx-4bit.json" || warn "mlx server bench failed"
+    # mlx_lm.server has no prompt cache opt-out; llama-benchy still makes every request unique.
+    run_benchy "mlx-4bit" "$MLX_PORT" "$m" "$m" "0 4096 16384 32768" --no-cache
+    run_latency "mlx-4bit" "$MLX_PORT" "$m"
   else
     warn "mlx_lm.server did not start (logs/mlx-server.log)"
   fi
@@ -201,18 +220,18 @@ case "$SUITE" in
   quick)
     BENCH_REPS=3
     suite_perf "$PRIMARY" "0,16384"
-    suite_server "$PRIMARY" 0
+    suite_server "$PRIMARY" "0 16384" 0
     suite_agent smoke ;;
   standard|full)
     suite_perf "$GGUF_QUANTS" "$BENCH_DEPTHS"
     if [[ "$RUN_4167_REFERENCE" == 1 ]]; then suite_ref4167; fi
-    suite_server "$GGUF_QUANTS" 1
+    suite_server "$GGUF_QUANTS" "$BENCHY_DEPTHS" 1
     suite_mlx
     if [[ $SUITE == full ]]; then suite_coding "humaneval mbpp"; else suite_coding "$EVALPLUS_DATASETS"; fi
     suite_agent "$([[ $SUITE == full ]] && echo verified || echo "$SWE_SUBSET")" ;;
   perf)    suite_perf "$GGUF_QUANTS" "$BENCH_DEPTHS" ;;
   ref4167) suite_ref4167 ;;
-  server)  suite_server "$GGUF_QUANTS" 1 ;;
+  server)  suite_server "$GGUF_QUANTS" "$BENCHY_DEPTHS" 1 ;;
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;

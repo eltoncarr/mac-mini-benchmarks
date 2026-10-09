@@ -2,6 +2,8 @@
 huggingface_hub[cli,hf_transfer]>=0.34
 pyyaml
 datasets
+# server benchmark (llama-bench style, any OpenAI-compatible endpoint)
+llama-benchy==0.4.0
 # coding benchmark
 evalplus
 # agentic benchmark (SWE-bench)
