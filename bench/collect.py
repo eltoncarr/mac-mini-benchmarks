@@ -169,6 +169,13 @@ def swebench_one(d):
         out["empty_patches"] = sum(1 for p in preds.values() if not (p.get("model_patch") or "").strip())
     if (d / "calls.jsonl").exists():
         out["telemetry"] = agent_telemetry(d / "calls.jsonl")
+    # why each task ended (Submitted, LimitsExceeded, an exception name, ...)
+    exits = {}
+    for traj in sorted((d / "trajs").glob("*/*.traj.json")):
+        st = ((load(traj) or {}).get("info") or {}).get("exit_status") or "unknown"
+        exits[st] = exits.get(st, 0) + 1
+    if exits:
+        out["exit_statuses"] = exits
     out.update(load(d / "meta.json") or {})
     return out
 
@@ -181,13 +188,14 @@ def swebench(run, S, md):
     res = {d.name: swebench_one(d) for d in dirs}
     S["swebench"] = res
     md += ["## Agentic coding: SWE-bench (mini-swe-agent, bash-only)", "",
-           "| model | subset | resolved | empty patches | MTP | thinking | wall h | model calls | max context |",
-           "|---|---|---:|---:|---|---|---:|---:|---:|"]
+           "| model | subset | resolved | empty patches | ended by | MTP | thinking | wall h | model calls | max context |",
+           "|---|---|---:|---:|---|---|---|---:|---:|---:|"]
     for m, o in res.items():
         t = o.get("telemetry") or {}
         resolved = (f"{o['resolved']} / {o['submitted']} ({100 * o['resolved'] / max(1, o['submitted']):.1f}%)"
                     if o.get("resolved") is not None else "not evaluated")
-        md.append(f"| {m} | {o.get('subset')} | {resolved} | {o.get('empty_patches', '—')} | "
+        ended = ", ".join(f"{k} ×{v}" for k, v in (o.get("exit_statuses") or {}).items()) or "—"
+        md.append(f"| {m} | {o.get('subset')} | {resolved} | {o.get('empty_patches', '—')} | {ended} | "
                   f"{'on' if o.get('mtp') else 'off'} | {'on' if o.get('thinking') else 'off'} | "
                   f"{fmt((o.get('wall_s') or 0) / 3600, 2)} | {t.get('calls', '—')} | {t.get('max_context', '—')} |")
     for m, o in res.items():

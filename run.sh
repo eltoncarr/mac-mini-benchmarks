@@ -270,7 +270,7 @@ suite_agent() {  # <smoke|mini|verified>
     stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
     jq -n --arg s "$subset${SWE_SLICE:+[$SWE_SLICE]}" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
        --argjson w "$wall" --argjson np "$np" --argjson mtp "$SERVED_MTP" \
-       --arg v "$(pip show mini-swe-agent 2>/dev/null | awk '/^Version/{print $2}')" \
+       --arg v "$(python -c 'import importlib.metadata as m; print(m.version("mini-swe-agent"))' 2>/dev/null)" \
        '{subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), mtp:($mtp==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' \
        >"$d/meta.json"
     if [[ -f "$d/trajs/preds.json" ]]; then
