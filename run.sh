@@ -95,11 +95,14 @@ suite_perf() {  # <depths>
 # ---- ref4167: exact command from llama.cpp Discussion #4167 ----------------------
 suite_ref4167() {
   local d="$MODELS/llama2-7b" args=()
-  for pat in '*[Ff]16*.gguf' '*Q8_0*.gguf' '*Q4_0*.gguf'; do
-    local f; f="$(find "$d" -name "$pat" 2>/dev/null | head -n1)"
-    if [[ -n "$f" ]]; then args+=(-m "$f"); fi
+  local kind f
+  for kind in F16 Q8_0 Q4_0; do   # same selection rule as bench/ref_models.py
+    f="$(python -c 'import sys, pathlib; sys.path.insert(0, sys.argv[1]); import ref_models as r
+fs = [str(p) for p in pathlib.Path(sys.argv[2]).rglob("*.gguf")]; print(r.pick(fs, sys.argv[3]) or "")' \
+      "$ROOT/bench" "$d" "$kind")"
+    if [[ -n "$f" ]]; then args+=(-m "$f"); else warn "#4167: no Llama-2 7B $kind model in $d (./bootstrap.sh)"; fi
   done
-  (( ${#args[@]} )) || { warn "Llama-2 7B reference models missing; skipping #4167 run"; return; }
+  (( ${#args[@]} == 6 )) || { warn "Llama-2 7B reference models incomplete; skipping #4167 run"; return; }
   local bench="$VENDOR/llama.cpp-4167/build/bin/llama-bench"
   if [[ -z "$REF4167_LLAMA_REF" || ! -x "$bench" ]]; then
     bench="$LLAMA_BIN/llama-bench"

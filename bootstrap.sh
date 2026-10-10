@@ -147,8 +147,7 @@ if [[ $WANT_DOWNLOAD == 1 ]]; then
   fi
   if [[ "$RUN_4167_REFERENCE" == 1 ]]; then
     log "Downloading Llama-2 7B reference GGUFs (llama.cpp Discussion #4167)"
-    hf download ggml-org/Llama-2-7B-GGUF --local-dir "$MODELS/llama2-7b" \
-      --include "*[Ff]16*.gguf" "*Q8_0*.gguf" "*Q4_0*.gguf" >/dev/null
+    python "$ROOT/bench/ref_models.py" "$MODELS/llama2-7b" || warn "Llama-2 7B reference download incomplete"
   fi
 fi
 
