@@ -93,6 +93,21 @@ log "Building llama.cpp @ $(git -C "$LLAMA_DIR" rev-parse --short HEAD)"
 cmake -S "$LLAMA_DIR" -B "$LLAMA_DIR/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DGGML_METAL=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null
 cmake --build "$LLAMA_DIR/build" --target llama-bench llama-server llama-cli -j >/dev/null
+# llama-bench at the commit the #4167 thread asks for (only for ./run.sh ref4167)
+if [[ "$RUN_4167_REFERENCE" == 1 && -n "$REF4167_LLAMA_REF" && ! -x "$VENDOR/llama.cpp-4167/build/bin/llama-bench" ]]; then
+  log "Building llama-bench @ $REF4167_LLAMA_REF for the #4167 reference run"
+  rm -rf "$VENDOR/llama.cpp-4167"
+  git -C "$LLAMA_DIR" fetch --quiet origin
+  git -C "$LLAMA_DIR" worktree prune
+  if git -C "$LLAMA_DIR" worktree add --quiet --detach "$VENDOR/llama.cpp-4167" "$REF4167_LLAMA_REF" \
+     && cmake -S "$VENDOR/llama.cpp-4167" -B "$VENDOR/llama.cpp-4167/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DGGML_METAL=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null \
+     && cmake --build "$VENDOR/llama.cpp-4167/build" --target llama-bench -j >/dev/null; then
+    log "#4167 llama-bench ready"
+  else
+    warn "Could not build llama-bench @ $REF4167_LLAMA_REF; ref4167 will use the main build"
+  fi
+fi
 llama_supports_mtp && log "llama-server supports MTP speculative decoding" \
   || warn "This llama.cpp build has no draft-mtp; MTP runs will be skipped"
 

@@ -100,9 +100,14 @@ suite_ref4167() {
     if [[ -n "$f" ]]; then args+=(-m "$f"); fi
   done
   (( ${#args[@]} )) || { warn "Llama-2 7B reference models missing; skipping #4167 run"; return; }
-  local delay=(); "$LLAMA_BIN/llama-bench" --help 2>&1 | grep -q -- "--delay" && delay=(--delay 30)
-  log "llama-bench Llama-2 7B reference (Discussion #4167)"
-  "$LLAMA_BIN/llama-bench" ${args[@]+"${args[@]}"} -p 512 -n 128 -ngl 99 ${delay[@]+"${delay[@]}"} -o md \
+  local bench="$VENDOR/llama.cpp-4167/build/bin/llama-bench"
+  if [[ -z "$REF4167_LLAMA_REF" || ! -x "$bench" ]]; then
+    bench="$LLAMA_BIN/llama-bench"
+    [[ -n "$REF4167_LLAMA_REF" ]] && warn "#4167: llama-bench @ $REF4167_LLAMA_REF not built (./bootstrap.sh); using the main build"
+  fi
+  local delay=(); "$bench" --help 2>&1 | grep -q -- "--delay" && delay=(--delay 30)
+  log "llama-bench Llama-2 7B reference (Discussion #4167) with $bench"
+  "$bench" ${args[@]+"${args[@]}"} -p 512 -n 128 -ngl 99 ${delay[@]+"${delay[@]}"} -o md \
     >"$RUN/llama_bench/4167.md" 2>"$RUN/logs/ref4167.log" || warn "reference run failed"
 }
 
