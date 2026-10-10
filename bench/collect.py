@@ -176,33 +176,41 @@ def swebench_one(d):
         exits[st] = exits.get(st, 0) + 1
     if exits:
         out["exit_statuses"] = exits
+    # per task: resolved (True/False/None = not evaluated) and how it ended
+    inst = {}
+    for traj in sorted((d / "trajs").glob("*/*.traj.json")):
+        inst[traj.parent.name] = {"resolved": None,
+                                  "exit": ((load(traj) or {}).get("info") or {}).get("exit_status")}
+    if rep:
+        for iid in rep.get("resolved_ids") or []:
+            inst.setdefault(iid, {})["resolved"] = True
+        for key in ("unresolved_ids", "empty_patch_ids", "error_ids"):
+            for iid in rep.get(key) or []:
+                inst.setdefault(iid, {})["resolved"] = False
+    out["instances"] = inst
     out.update(load(d / "meta.json") or {})
     return out
 
 
 def swebench(run, S, md):
     root = run / "swebench"
-    dirs = sorted(p for p in root.glob("*") if p.is_dir() and (p / "meta.json").exists()) if root.exists() else []
-    if not dirs:
+    metas = sorted(root.rglob("meta.json")) if root.exists() else []
+    if not metas:
         return
-    res = {d.name: swebench_one(d) for d in dirs}
+    # layout: swebench/<model>/<subset>/ (older runs: swebench/<model>/)
+    res = {}
+    for meta in metas:
+        o = swebench_one(meta.parent)
+        o.setdefault("model", meta.parent.relative_to(root).parts[0])
+        res[str(meta.parent.relative_to(root))] = o
     S["swebench"] = res
-    md += ["## Agentic coding: SWE-bench (mini-swe-agent, bash-only)", "",
-           "| model | subset | resolved | empty patches | ended by | MTP | thinking | wall h | model calls | max context |",
-           "|---|---|---:|---:|---|---|---|---:|---:|---:|"]
-    for m, o in res.items():
-        t = o.get("telemetry") or {}
-        resolved = (f"{o['resolved']} / {o['submitted']} ({100 * o['resolved'] / max(1, o['submitted']):.1f}%)"
-                    if o.get("resolved") is not None else "not evaluated")
-        ended = ", ".join(f"{k} ×{v}" for k, v in (o.get("exit_statuses") or {}).items()) or "—"
-        md.append(f"| {m} | {o.get('subset')} | {resolved} | {o.get('empty_patches', '—')} | {ended} | "
-                  f"{'on' if o.get('mtp') else 'off'} | {'on' if o.get('thinking') else 'off'} | "
-                  f"{fmt((o.get('wall_s') or 0) / 3600, 2)} | {t.get('calls', '—')} | {t.get('max_context', '—')} |")
-    for m, o in res.items():
+    md += ["## Agentic coding: SWE-bench (mini-swe-agent, bash-only)", ""]
+    md += swebench_table(res)
+    for key, o in res.items():
         t = o.get("telemetry")
         if not t:
             continue
-        md += ["", f"**{m}**: speed during the agent run by context size; prefix-cache hit ratio "
+        md += ["", f"**{key}**: speed during the agent run by context size; prefix-cache hit ratio "
                f"{100 * t['prefix_cache_hit_ratio']:.0f}%"
                + (f", MTP acceptance {100 * t['mtp_acceptance']:.0f}%" if t.get("mtp_acceptance") else ""),
                "", "| context | calls | median TTFT s | new prompt tokens | prefill t/s | decode t/s |",
@@ -210,6 +218,35 @@ def swebench(run, S, md):
         md += [f"| {b['range']} | {b['calls']} | {fmt(b['ttft_s'], 2)} | {fmt(b['new_prompt_tokens'], 0)} | "
                f"{fmt(b['prompt_tps'])} | {fmt(b['predicted_tps'])} |" for b in t["buckets"]]
     md.append("")
+
+
+def swebench_table(res):
+    md = ["| run | model | subset | resolved | empty patches | ended by | MTP | thinking | wall h | model calls | max context |",
+          "|---|---|---|---:|---:|---|---|---|---:|---:|---:|"]
+    for key, o in res.items():
+        t = o.get("telemetry") or {}
+        resolved = (f"{o['resolved']} / {o['submitted']} ({100 * o['resolved'] / max(1, o['submitted']):.1f}%)"
+                    if o.get("resolved") is not None else "not evaluated")
+        ended = ", ".join(f"{k} ×{v}" for k, v in (o.get("exit_statuses") or {}).items()) or "—"
+        md.append(f"| {key} | {o.get('model')} | {o.get('subset')} | {resolved} | {o.get('empty_patches', '—')} | {ended} | "
+                  f"{'on' if o.get('mtp') else 'off'} | {'on' if o.get('thinking') else 'off'} | "
+                  f"{fmt((o.get('wall_s') or 0) / 3600, 2)} | {t.get('calls', '—')} | {t.get('max_context', '—')} |")
+    # task-by-task, one column per model
+    models = sorted({o["model"] for o in res.values()})
+    tasks = {}
+    for o in res.values():
+        for iid, v in (o.get("instances") or {}).items():
+            tasks.setdefault(iid, {})[o["model"]] = v
+    if tasks:
+        def cell(v):
+            if not v:
+                return ""
+            mark = {True: "✅", False: "❌", None: "·"}[v.get("resolved")]
+            return f"{mark} {v.get('exit') or ''}".strip()
+        md += ["", "| task | " + " | ".join(models) + " |", "|---|" + "---|" * len(models)]
+        md += [f"| {iid} | " + " | ".join(cell(per.get(m)) for m in models) + " |" for iid, per in sorted(tasks.items())]
+        md += ["", "✅ resolved · ❌ not resolved · `·` not evaluated; the word is how the agent run ended."]
+    return md
 
 
 def evalplus(run, S, md):
@@ -277,8 +314,8 @@ def comparison(S, env):
           "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in models:
         ev = (S.get("evalplus", {}).get(m) or {}).get("humaneval") or {}
-        sw = (S.get("swebench") or {}).get(m) or {}
-        swr = f"{sw['resolved']}/{sw['submitted']}" if sw.get("resolved") is not None else "—"
+        sws = [o for o in (S.get("swebench") or {}).values() if o.get("model") == m and o.get("resolved") is not None]
+        swr = ", ".join(f"{o['resolved']}/{o['submitted']} {o.get('subset', '')}".strip() for o in sws) or "—"
         md.append(f"| {m} | {fmt(sizes.get(m), 2)} | {fmt(lb(m, 'pp'))} | {fmt(lb(m, 'tg'))} | "
                   f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(chat_tps(f'llama.cpp-{m}'))} | "
                   f"{fmt(chat_tps(f'llama.cpp-{m}-mtp'))} | {fmt(benchy_tg(f'llama.cpp-{m}'))} | "
@@ -327,6 +364,8 @@ def compare(out, runs):
     commits = {n.split('|')[4].strip() for n in notes}
     suites = {n.split('|')[3].strip() for n in notes}
     md = header(menv["first"], ", ".join(r.name for r in runs)) + comparison(merged, menv)
+    if merged["swebench"]:
+        md += ["### SWE-bench", ""] + swebench_table(merged["swebench"]) + [""]
     md += ["### Runs", "", "| run | model | suite | llama.cpp | macOS |", "|---|---|---|---|---|"] + notes + [""]
     if len(commits) > 1:
         md += ["> Runs used different llama.cpp commits; speed numbers may not be directly comparable.", ""]

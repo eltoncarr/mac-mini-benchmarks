@@ -253,7 +253,10 @@ suite_agent() {  # <smoke|mini|verified>
   if [[ -n "$SWE_SLICE" && "$subset" != smoke ]]; then args+=(--slice "$SWE_SLICE"); fi
   local np="$SWE_WORKERS"
   for m in $MODELS_SEL; do
-    local d="$RUN/swebench/$m"
+    # one folder per model and subset, so a later slice never mixes with the smoke task
+    local tag="$subset${SWE_SLICE:+_${SWE_SLICE/:/-}}"
+    [[ "$subset" == smoke ]] && tag=smoke
+    local d="$RUN/swebench/$m/$tag"
     mkdir -p "$d"
     start_quality_server "$m" agent -c $((SERVER_CTX * np)) -np "$np" || { warn "skip SWE-bench for $m"; continue; }
     python "$ROOT/bench/telemetry_proxy.py" --listen "$PROXY_PORT" --upstream "http://127.0.0.1:$SERVER_PORT" \
@@ -265,17 +268,17 @@ suite_agent() {  # <smoke|mini|verified>
     local t0=$SECONDS
     MSWEA_COST_TRACKING=ignore_errors mini-extra swebench --subset "$ds" --split test \
       -c "$d/mini-swe-agent.yaml" -w "$np" -o "$d/trajs" ${args[@]+"${args[@]}"} \
-      >"$RUN/logs/mini-swe-agent-$m.log" 2>&1 || warn "mini-swe-agent exited non-zero (logs/mini-swe-agent-$m.log)"
+      >"$RUN/logs/mini-swe-agent-$m-$tag.log" 2>&1 || warn "mini-swe-agent exited non-zero (logs/mini-swe-agent-$m-$tag.log)"
     local wall=$((SECONDS - t0))
     stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
-    jq -n --arg s "$subset${SWE_SLICE:+[$SWE_SLICE]}" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
+    jq -n --arg model "$m" --arg s "$subset${SWE_SLICE:+[$SWE_SLICE]}" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
        --argjson w "$wall" --argjson np "$np" --argjson mtp "$SERVED_MTP" \
        --arg v "$(python -c 'import importlib.metadata as m; print(m.version("mini-swe-agent"))' 2>/dev/null)" \
-       '{subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), mtp:($mtp==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' \
+       '{model:$model, subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), mtp:($mtp==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' \
        >"$d/meta.json"
     if [[ -f "$d/trajs/preds.json" ]]; then
       cp "$d/trajs/preds.json" "$d/preds.json"
-      swe_evaluate "$d" "$m"
+      swe_evaluate "$d" "$m-$tag"
     else
       warn "no preds.json produced for $m"
     fi
