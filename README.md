@@ -39,6 +39,32 @@ git clone https://github.com/eltoncarr/mac-mini-benchmarks && cd mac-mini-benchm
 cat results/*/summary.md
 ```
 
+## Final run (publishable results)
+
+`./run.sh final` is the fixed protocol for published numbers: the full llama-bench depth
+sweep (0–64k), the full server suite (llama-benchy plain and MTP, prefix cache,
+concurrency 1/2/4, short-chat latency) and HumanEval+ (EvalPlus, greedy, thinking off).
+SWE-bench and MLX are not part of it.
+
+```bash
+git pull && git log -1 --oneline           # note the harness commit for the write-up
+# config.local.env: keep only what the final run needs
+cat > config.local.env <<'CFG'
+RUN_4167_REFERENCE=1
+MEASURE_POWER=1
+CFG
+./bootstrap.sh --no-docker --no-mlx        # adds the Llama-2 7B reference models; keeps the llama.cpp build
+./run.sh ref4167                           # ~15 min, once per machine
+./run.sh final                             # ~4-5 h  (gsq-iq3s-mtp)
+MODEL=q8_0 ./run.sh final                  # ~5-6 h
+./run.sh compare $(printf '%s\n' results/*_final | tail -n2)
+```
+
+Before starting: plug in, close other apps (browsers too: they keep the GPU busy and
+appear in `env.json` as sleep blockers), and leave the Mac alone until it finishes. With
+`MEASURE_POWER=1` the run asks for your password once and keeps sudo active.
+Check `problems.log` in each run folder: an empty file means every step ran.
+
 ## What gets measured
 
 | Suite | Tool (standard) | Metrics |

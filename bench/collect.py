@@ -42,7 +42,40 @@ def llama_bench(run, S, md):
         md += ["", f"build `{rows[0]['build']}`", ""]
     ref = run / "llama_bench" / "4167.md"
     if ref.exists():
-        md += ["## Llama-2 7B reference (llama.cpp Discussion #4167 format)", "", ref.read_text().strip(), ""]
+        raw = ref.read_text().strip()
+        md += ["## Llama-2 7B reference (llama.cpp Discussion #4167 format)", "", raw, ""]
+        row = ref4167_row(raw, S.get("env") or {})
+        if row:
+            S["ref4167_row"] = row
+            md += ["Summary row for the thread's table (bandwidth from Apple's spec for the chip):", "",
+                   "| Chip | BW (GB/s) | GPU Cores | F16 PP | F16 TG | Q8_0 PP | Q8_0 TG | Q4_0 PP | Q4_0 TG | commit |",
+                   "|---|---|---|---|---|---|---|---|---|---|", row, ""]
+
+
+# Memory bandwidth (GB/s) by chip, from Apple's specs; used only for the #4167 row.
+CHIP_BW = {"Apple M5 Pro": 307, "Apple M5 Max": 614, "Apple M5": 153, "Apple M4 Pro": 273, "Apple M4 Max": 546}
+
+
+def ref4167_row(raw, env):
+    """Build the one-line summary the #4167 thread uses from llama-bench's markdown output."""
+    vals = {}
+    for line in raw.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 7 or not cells[-2] in ("pp512", "tg128"):
+            continue
+        model = cells[0].upper()
+        kind = "F16" if "F16" in model else "Q8_0" if "Q8_0" in model else "Q4_0" if "Q4_0" in model else None
+        if kind:
+            vals[(kind, cells[-2][:2])] = cells[-1].split("±")[0].strip()
+    build = re.search(r"build:\s*([0-9a-f]+)", raw)
+    if not vals:
+        return None
+    m = env.get("machine", {})
+    chip = m.get("chip", "?")
+    cols = [vals.get((k, t), "—") for k in ("F16", "Q8_0", "Q4_0") for t in ("pp", "tg")]
+    return (f"| {chip.replace('Apple ', '')} ({m.get('model_name', 'Mac')}, {m.get('memory_gb', '?')} GB) | "
+            f"{CHIP_BW.get(chip, '?')} | {m.get('gpu_cores', '?')} | " + " | ".join(cols) +
+            f" | {build.group(1) if build else '?'} |")
 
 
 def mlx(run, S, md):

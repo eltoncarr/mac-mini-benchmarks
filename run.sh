@@ -2,6 +2,7 @@
 # Run benchmark suites and collect results into results/<run>/.
 #
 #   ./run.sh quick      # ~30-90 min: llama-bench, llama-benchy, 1 SWE-bench task
+#   ./run.sh final      # ~4-5 h: publishable set: full depth sweep, server suite, HumanEval+
 #   ./run.sh standard   # overnight+: full depth sweeps, prefix cache, concurrency,
 #                       #   EvalPlus, SWE-bench Verified Mini (50)
 #   ./run.sh full       # days: standard + SWE-bench Verified (500) + MBPP+
@@ -55,6 +56,11 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 caffeinate -dimsu -w $$ &   # keep the Mac awake for the whole run
+if [[ "${MEASURE_POWER:-0}" == 1 ]]; then
+  log "MEASURE_POWER=1: powermetrics needs sudo for the whole run"
+  sudo -v || die "sudo is required for MEASURE_POWER=1"
+  while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 60; done &   # keep sudo authorized
+fi
 
 MTP_ARGS=()
 if [[ "$USE_MTP" == 1 ]] && llama_supports_mtp; then
@@ -322,12 +328,16 @@ case "$SUITE" in
     suite_server "$BENCHY_DEPTHS" 1
     if [[ $SUITE == full ]]; then suite_coding "humaneval mbpp"; else suite_coding "$EVALPLUS_DATASETS"; fi
     suite_agent "$([[ $SUITE == full ]] && echo verified || echo "$SWE_SUBSET")" ;;
+  final)   # publishable device results for one model: no SWE-bench, no MLX
+    suite_perf "$BENCH_DEPTHS"
+    suite_server "$BENCHY_DEPTHS" 1
+    suite_coding "$EVALPLUS_DATASETS" ;;
   perf)    suite_perf "$BENCH_DEPTHS" ;;
   ref4167) suite_ref4167 ;;
   server)  suite_server "$BENCHY_DEPTHS" 1 ;;
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;
-  *) die "unknown suite: $SUITE (quick|standard|full|perf|ref4167|server|mlx|coding|agent|collect|compare)" ;;
+  *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|agent|collect|compare)" ;;
 esac
 
