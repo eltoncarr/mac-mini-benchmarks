@@ -95,7 +95,8 @@ def benchy(run, S, md):
                 md.append(f"| {label} | pp{b['prompt_size']}{at}{cc} | {fmt(m(b, 'pp_throughput'), 2)} | "
                           f"{fmt(sd(b, 'pp_throughput'), 2)} | — | {lat} |")
             if m(b, "tg_throughput") is not None:
-                md.append(f"| {label} | tg{b['response_size']}{at}{cc} | {fmt(m(b, 'tg_throughput'), 2)} | "
+                md.append(f"| {label} | tg{b['response_size']} (after pp{b['prompt_size']}){at}{cc} | "
+                          f"{fmt(m(b, 'tg_throughput'), 2)} | "
                           f"{fmt(sd(b, 'tg_throughput'), 2)} | {fmt(m(b, 'peak_throughput'), 2)} | | | |")
     v = next(iter(out.values()))
     md += ["", f"llama-benchy {v.get('version')}, latency mode `{v.get('latency_mode')}`", ""]

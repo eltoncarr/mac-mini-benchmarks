@@ -250,6 +250,7 @@ suite_agent() {  # <smoke|mini|verified>
     verified) ds=verified ;;
     *) die "unknown SWE subset $subset" ;;
   esac
+  if [[ -n "$SWE_SLICE" && "$subset" != smoke ]]; then args+=(--slice "$SWE_SLICE"); fi
   local np="$SWE_WORKERS"
   for m in $MODELS_SEL; do
     local d="$RUN/swebench/$m"
@@ -267,7 +268,7 @@ suite_agent() {  # <smoke|mini|verified>
       >"$RUN/logs/mini-swe-agent-$m.log" 2>&1 || warn "mini-swe-agent exited non-zero (logs/mini-swe-agent-$m.log)"
     local wall=$((SECONDS - t0))
     stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
-    jq -n --arg s "$subset" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
+    jq -n --arg s "$subset${SWE_SLICE:+[$SWE_SLICE]}" --arg ds "$ds" --argjson sl "$SWE_STEP_LIMIT" --argjson th "$AGENT_THINKING" \
        --argjson w "$wall" --argjson np "$np" --argjson mtp "$SERVED_MTP" \
        --arg v "$(pip show mini-swe-agent 2>/dev/null | awk '/^Version/{print $2}')" \
        '{subset:$s, dataset:$ds, step_limit:$sl, thinking:($th==1), mtp:($mtp==1), wall_s:$w, workers:$np, mini_swe_agent:$v}' \

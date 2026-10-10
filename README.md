@@ -69,6 +69,10 @@ long-context prefill, prompt caching and decode speed at depth, not just short p
 | `mini` | 50 ([SWE-bench Verified Mini](https://huggingface.co/datasets/MariusHobbhahn/swe-bench-verified-mini)) | default for `standard` |
 | `verified` | 500 | comparable with the [SWE-bench bash-only leaderboard](https://www.swebench.com/) (`full`, takes days) |
 
+`SWE_SLICE="0:10"` runs only part of `mini` or `verified` (here the first 10 tasks). With
+thinking on, the smoke task took about 1 h on IQ3_S-mtp (42 model calls, up to 78k context),
+so a slice of 5–10 tasks per model is a practical overnight run.
+
 The agent uses mini-swe-agent's own `swebench.yaml` (the setup behind the bash-only
 leaderboard). Only the model block changes: the local server, Qwen's recommended
 sampling, and a step limit (`SWE_STEP_LIMIT`, default 100).
