@@ -1,15 +1,28 @@
-# mac-mini-benchmarks
+# Mac mini M5 Pro LLM benchmarks: Qwen3.8-27B on llama.cpp
 
-Reproducible local-LLM benchmarks for an **Apple Mac mini M5 Pro (64 GB)**, focused on
-**Qwen3.8-27B** (dense, Apache 2.0), comparing two builds of the model:
+Reproducible local-LLM benchmarks for an **Apple Mac mini M5 Pro (20-core GPU, 64 GB)** with
+**llama.cpp (Metal)**, focused on **Qwen3.8-27B** (dense, Apache 2.0).
+
+**Results (October 2026):**
+
+- **Generation:** 20.0 tokens/s (IQ3_S-mtp) and 10.1 tokens/s (Q8_0); **28.9 and 22.6 tokens/s with MTP**
+  speculative decoding on code; 13.3 and 8.3 tokens/s at 64k context.
+- **Quality:** both builds score **89.6% on HumanEval+**, so the 12 GB IQ3_S-mtp is as good as the 29 GB Q8_0
+  on this test while being 1.3–2× faster.
+- **Prefill:** ~400 tokens/s, falling to 190–250 tokens/s at 64k context; with the prompt cache, follow-up
+  turns at 32k context start in ~2 s.
+- **Hardware reference:** on llama.cpp's standard Llama-2 7B test the Mac mini matches the M5 Pro MacBook Pro.
+
+Full write-up: **[RESULTS.md](RESULTS.md)**. Machine-readable data (one row per measurement):
+[`data/qwen3.8-27b-mac-mini-m5-pro.json`](data/qwen3.8-27b-mac-mini-m5-pro.json) and
+[`.csv`](data/qwen3.8-27b-mac-mini-m5-pro.csv).
+
+Models compared:
 
 | label | file | size | what it is |
 |---|---|---:|---|
 | `gsq-iq3s-mtp` (default) | [ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF) `Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf` | ~12 GB | GSQ+RCO non-uniform 3.5 bpw, with the MTP head for speculative decoding |
 | `q8_0` | [unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) `*-Q8_0.gguf` | ~29 GB | standard 8-bit, near-lossless baseline |
-
-**Results: [RESULTS.md](RESULTS.md)** — same HumanEval+ score (89.6%), IQ3_S-mtp 1.3–2× faster;
-the Mac mini matches the M5 Pro MacBook Pro on llama.cpp's standard Llama-2 7B test.
 
 The question it answers: how much speed does the 12 GB build gain on this machine
 (smaller weights, plus MTP), and how much coding and agentic quality does it lose
@@ -196,3 +209,19 @@ bench/collect.py        builds summary.md / summary.json
 bench/sysinfo.py        env.json
 results/<run>/          raw JSON/logs + summary.md (trajectories and eval logs are git-ignored)
 ```
+
+## Exporting data
+
+`bench/export.py` turns final runs into the flat JSON/CSV in `data/` (one row per measurement:
+model, metric, context, prompt size, concurrency, MTP, value, unit, tool):
+
+```bash
+python bench/export.py --out data/qwen3.8-27b-mac-mini-m5-pro \
+  results/<iq3s final run> results/<q8_0 final run> --ref4167 results/<ref4167 run>
+```
+
+## License
+
+Code is licensed under the [MIT License](LICENSE). Benchmark data and results (`data/`, `results/`,
+`RESULTS.md`) are licensed under [CC BY 4.0](LICENSE-DATA); please credit
+"Mac mini M5 Pro LLM benchmarks by eltoncarr" with a link to this repository.
