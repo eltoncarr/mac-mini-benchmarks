@@ -4,6 +4,8 @@ Results from the `final` protocol of this repo, run on 10–11 October 2026.
 Raw data: [`results/20261010-1516_Qwen3.8-27B_gsq-iq3s-mtp_final`](results/20261010-1516_Qwen3.8-27B_gsq-iq3s-mtp_final),
 [`results/20261010-1905_Qwen3.8-27B_q8_0_final`](results/20261010-1905_Qwen3.8-27B_q8_0_final)
 and [`results/compare-20261011-1231.md`](results/compare-20261011-1231.md).
+Machine-readable, one row per measurement: [`data/qwen3.8-27b-mac-mini-m5-pro.json`](data/qwen3.8-27b-mac-mini-m5-pro.json)
+and [`.csv`](data/qwen3.8-27b-mac-mini-m5-pro.csv). Licensed under [CC BY 4.0](LICENSE-DATA).
 
 ## Summary
 
@@ -31,7 +33,7 @@ to 250 t/s (through the server) at 64k context.
 |---|---|
 | machine | Mac mini (Mac17,16), Apple M5 Pro, 6 P + 12 E CPU cores, 20 GPU cores, 64 GB, 307 GB/s |
 | OS | macOS 27.0, GPU wired-memory limit 48 GB (default) |
-| engine | llama.cpp `d4d82d67f` (b11515), Metal, `-ngl 999 -fa on --jinja`, KV cache `q8_0`, server context 131072 |
+| engine | llama.cpp `d4d82d67f` (b11516), Metal, `-ngl 999 -fa on --jinja`, KV cache `q8_0`, server context 131072 |
 | MTP | `--spec-type draft-mtp --spec-draft-n-max 2` (both GGUFs carry the MTP head) |
 | tools | llama-bench, llama-benchy 0.4.0, EvalPlus 0.3.1, powermetrics |
 | models | [`ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF`](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF) `Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf`; [`unsloth/Qwen3.8-27B-GGUF`](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) `Qwen3.8-27B-Q8_0.gguf` |

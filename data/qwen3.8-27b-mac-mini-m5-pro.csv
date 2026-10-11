@@ -1,0 +1,273 @@
+model,model_name,metric,context_tokens,prompt_tokens,concurrency,mtp,value,unit,tool,note
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,1,False,400.13,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,,1,False,19.96,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,1,False,339.42,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,,1,False,19.06,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,512,1,False,300.85,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,,1,False,16.94,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,512,1,False,254.87,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,,1,False,15.69,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,65536,512,1,False,190.0,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,65536,,1,False,13.34,tokens/s,llama-bench,
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,1,False,365.21,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,512,1,False,18.74,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,512,1,False,1.54,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,2,False,355.23,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,0,512,2,False,24.02,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,512,2,False,2.89,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,4,False,351.89,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,0,512,4,False,40.98,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,512,4,False,5.83,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,2048,1,False,358.52,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,2048,1,False,18.72,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,2048,1,False,5.85,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,2048,2,False,356.04,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,0,2048,2,False,23.21,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,2048,2,False,11.42,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,2048,4,False,344.06,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,0,2048,4,False,27.08,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,2048,4,False,21.77,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,1,False,356.2,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,512,1,False,18.48,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,1,False,13.07,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,2,False,347.83,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,4096,512,2,False,19.78,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,2,False,25.55,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,4,False,343.62,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,4096,512,4,False,13.57,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,4,False,45.45,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,1,False,355.34,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,2048,1,False,18.38,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,1,False,17.43,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,2,False,347.41,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,4096,2048,2,False,14.6,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,2,False,32.2,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,4,False,344.93,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),total_generation_tokens_per_s,4096,2048,4,False,9.23,tokens/s,llama-benchy 0.4.0 (concurrency),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,4,False,53.08,s,llama-benchy 0.4.0 (concurrency),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,1,True,366.28,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,512,1,True,24.55,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,512,1,True,1.54,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,2048,1,True,361.96,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,2048,1,True,23.07,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,2048,1,True,5.8,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,1,True,351.09,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,512,1,True,20.21,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,1,True,13.27,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,1,True,347.62,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,2048,1,True,18.85,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,1,True,17.81,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,512,1,True,323.62,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,512,1,True,19.85,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,512,1,True,52.35,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,2048,1,True,319.53,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,2048,1,True,17.03,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,2048,1,True,57.83,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,512,1,True,290.04,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,512,1,True,15.44,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,512,1,True,114.88,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,2048,1,True,287.5,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,2048,1,True,14.64,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,2048,1,True,121.24,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,65536,512,1,True,240.78,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,65536,512,1,True,13.58,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,65536,512,1,True,274.44,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,65536,2048,1,True,237.66,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,65536,2048,1,True,10.15,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,65536,2048,1,True,284.52,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,1,False,335.45,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,512,1,False,18.48,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,1,False,1.67,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,1,False,343.42,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,2048,1,False,18.34,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,1,False,6.11,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,512,1,False,285.95,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,512,1,False,17.29,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,512,1,False,1.94,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,2048,1,False,295.19,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,2048,1,False,17.15,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,2048,1,False,7.08,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,512,1,False,226.15,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,512,1,False,15.38,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,512,1,False,2.41,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,2048,1,False,242.41,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,2048,1,False,14.81,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,2048,1,False,8.6,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,512,1,True,384.77,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,512,1,True,19.31,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,512,1,True,1.47,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,0,2048,1,True,368.38,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,2048,1,True,18.9,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,2048,1,True,5.7,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,512,1,True,359.58,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,512,1,True,18.58,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,512,1,True,12.96,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,4096,2048,1,True,356.12,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,4096,2048,1,True,18.4,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,4096,2048,1,True,17.4,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,512,1,True,333.3,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,512,1,True,16.35,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,512,1,True,50.84,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,16384,2048,1,True,330.42,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,16384,2048,1,True,16.38,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,16384,2048,1,True,55.93,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,512,1,True,300.5,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,512,1,True,14.82,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,512,1,True,110.9,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,32768,2048,1,True,297.24,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,32768,2048,1,True,14.81,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,32768,2048,1,True,117.28,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,65536,512,1,True,249.72,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,65536,512,1,True,12.68,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,65536,512,1,True,264.63,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),prefill_tokens_per_s,65536,2048,1,True,247.83,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,65536,2048,1,True,12.63,tokens/s,llama-benchy 0.4.0 (api),
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,65536,2048,1,True,272.84,s,llama-benchy 0.4.0 (api),uncached
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,,1,True,28.9,tokens/s,"short-chat stream (256 tokens, code, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,,1,True,0.1,s,"short-chat stream (256 tokens, code, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),generation_tokens_per_s,0,,1,True,18.33,tokens/s,"short-chat stream (256 tokens, code, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),time_to_first_token_s,0,,1,True,0.1,s,"short-chat stream (256 tokens, code, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),humaneval_pass_at_1,0,,1,False,93.3,%,"EvalPlus (greedy, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),humaneval_plus_pass_at_1,0,,1,False,89.6,%,"EvalPlus (greedy, thinking off)",
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),avg_power_w,0,,1,True,35.59,W,powermetrics (CPU+GPU+ANE),llama-bench
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),avg_power_w,0,,1,True,36.02,W,powermetrics (CPU+GPU+ANE),server
+gsq-iq3s-mtp,Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp (ISTA-DASLab),avg_power_w,0,,1,True,35.42,W,powermetrics (CPU+GPU+ANE),server
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,1,False,414.75,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,,1,False,10.12,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,1,False,352.81,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,,1,False,9.97,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,512,1,False,306.23,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,,1,False,9.6,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,512,1,False,255.81,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,,1,False,9.14,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,65536,512,1,False,191.74,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,65536,,1,False,8.28,tokens/s,llama-bench,
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,1,False,415.43,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,512,1,False,10.09,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,512,1,False,1.4,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,2,False,367.72,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,0,512,2,False,18.21,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,512,2,False,2.79,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,4,False,361.9,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,0,512,4,False,33.07,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,512,4,False,5.67,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,2048,1,False,395.83,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,2048,1,False,10.03,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,2048,1,False,5.34,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,2048,2,False,368.35,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,0,2048,2,False,17.76,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,2048,2,False,11.01,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,2048,4,False,353.67,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,0,2048,4,False,23.39,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,2048,4,False,21.11,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,1,False,382.14,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,512,1,False,9.91,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,1,False,12.22,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,2,False,359.39,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,4096,512,2,False,15.59,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,2,False,24.66,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,4,False,351.97,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,4096,512,4,False,12.63,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,4,False,44.26,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,1,False,376.0,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,2048,1,False,9.86,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,1,False,16.51,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,2,False,358.46,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,4096,2048,2,False,12.24,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,2,False,31.13,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,4,False,353.49,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),total_generation_tokens_per_s,4096,2048,4,False,8.84,tokens/s,llama-benchy 0.4.0 (concurrency),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,4,False,51.7,s,llama-benchy 0.4.0 (concurrency),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,1,True,390.02,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,512,1,True,17.43,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,512,1,True,1.48,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,2048,1,True,370.93,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,2048,1,True,18.83,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,2048,1,True,5.69,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,1,True,360.17,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,512,1,True,17.31,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,1,True,12.96,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,1,True,355.63,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,2048,1,True,16.53,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,1,True,17.44,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,512,1,True,329.06,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,512,1,True,16.02,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,512,1,True,51.51,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,2048,1,True,325.51,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,2048,1,True,14.18,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,2048,1,True,56.79,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,512,1,True,294.81,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,512,1,True,14.01,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,512,1,True,113.05,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,2048,1,True,292.78,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,2048,1,True,14.35,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,2048,1,True,119.08,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,65536,512,1,True,244.24,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,65536,512,1,True,10.75,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,65536,512,1,True,270.59,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,65536,2048,1,True,242.3,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,65536,2048,1,True,10.95,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,65536,2048,1,True,279.09,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,1,False,355.23,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,512,1,False,9.92,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,1,False,1.6,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,1,False,366.23,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,2048,1,False,9.87,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,1,False,5.75,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,512,1,False,289.2,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,512,1,False,9.49,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,512,1,False,1.93,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,2048,1,False,305.92,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,2048,1,False,9.45,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,2048,1,False,6.86,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,512,1,False,236.18,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,512,1,False,9.0,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,512,1,False,2.33,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,2048,1,False,254.1,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,2048,1,False,8.97,tokens/s,llama-benchy 0.4.0 (prefix-cache),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,2048,1,False,8.22,s,llama-benchy 0.4.0 (prefix-cache),context served from prompt cache
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,512,1,False,412.05,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,512,1,False,10.08,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,512,1,False,1.41,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,0,2048,1,False,391.48,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,2048,1,False,10.02,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,2048,1,False,5.39,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,512,1,False,379.08,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,512,1,False,9.9,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,512,1,False,12.32,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,4096,2048,1,False,375.14,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,4096,2048,1,False,9.84,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,4096,2048,1,False,16.54,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,512,1,False,344.41,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,512,1,False,9.46,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,512,1,False,49.22,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,16384,2048,1,False,340.97,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,16384,2048,1,False,9.43,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,16384,2048,1,False,54.22,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,512,1,False,308.92,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,512,1,False,8.96,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,512,1,False,107.9,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,32768,2048,1,False,306.03,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,32768,2048,1,False,8.93,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,32768,2048,1,False,113.93,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,65536,512,1,False,254.76,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,65536,512,1,False,8.13,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,65536,512,1,False,259.42,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),prefill_tokens_per_s,65536,2048,1,False,252.92,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,65536,2048,1,False,8.08,tokens/s,llama-benchy 0.4.0 (api),
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,65536,2048,1,False,267.38,s,llama-benchy 0.4.0 (api),uncached
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,,1,True,22.64,tokens/s,"short-chat stream (256 tokens, code, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,,1,True,0.12,s,"short-chat stream (256 tokens, code, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),generation_tokens_per_s,0,,1,False,10.09,tokens/s,"short-chat stream (256 tokens, code, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),time_to_first_token_s,0,,1,False,0.13,s,"short-chat stream (256 tokens, code, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),humaneval_pass_at_1,0,,1,False,92.1,%,"EvalPlus (greedy, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),humaneval_plus_pass_at_1,0,,1,False,89.6,%,"EvalPlus (greedy, thinking off)",
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),avg_power_w,0,,1,False,29.41,W,powermetrics (CPU+GPU+ANE),llama-bench
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),avg_power_w,0,,1,True,34.72,W,powermetrics (CPU+GPU+ANE),server
+q8_0,Qwen3.8-27B-Q8_0 (unsloth),avg_power_w,0,,1,False,33.59,W,powermetrics (CPU+GPU+ANE),server
+llama-2-7b-f16,Llama-2 7B F16 (ggml-org/Llama-2-7B-GGUF),prefill_tokens_per_s,0,512,1,False,1589.81,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
+llama-2-7b-f16,Llama-2 7B F16 (ggml-org/Llama-2-7B-GGUF),generation_tokens_per_s,0,,1,False,21.45,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
+llama-2-7b-q8_0,Llama-2 7B Q8_0 (ggml-org/Llama-2-7B-GGUF),prefill_tokens_per_s,0,512,1,False,1579.5,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
+llama-2-7b-q8_0,Llama-2 7B Q8_0 (ggml-org/Llama-2-7B-GGUF),generation_tokens_per_s,0,,1,False,38.97,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
+llama-2-7b-q4_0,Llama-2 7B Q4_0 (ggml-org/Llama-2-7B-GGUF),prefill_tokens_per_s,0,512,1,False,1645.99,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
+llama-2-7b-q4_0,Llama-2 7B Q4_0 (ggml-org/Llama-2-7B-GGUF),generation_tokens_per_s,0,,1,False,66.84,tokens/s,llama-bench @ c1d0e7a00 (llama.cpp Discussion #4167),
