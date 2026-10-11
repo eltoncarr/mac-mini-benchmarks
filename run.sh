@@ -26,9 +26,18 @@ if [[ "$SUITE" == compare ]]; then
   python "$ROOT/bench/collect.py" --compare "$ROOT/results/compare-$(date +%Y%m%d-%H%M).md" "$@"; exit
 fi
 
+# rescore only re-reads files of an existing run: no model, no servers, env.json untouched
+REUSE_RUN=0
+if [[ "$SUITE" == rescore ]]; then
+  [[ -n "${RUN_DIR:-}" && -f "$RUN_DIR/env.json" ]] || die "usage: RUN_DIR=results/<existing run> ./run.sh rescore"
+  REUSE_RUN=1 MEASURE_POWER=0
+fi
+
 MODEL="${MODEL:-$(model_labels | head -n1)}"
-[[ -n "$(model_glob "$MODEL")" ]] || die "Unknown MODEL '$MODEL'. Labels in GGUF_MODELS: $(model_labels | tr '\n' ' ')"
-[[ -n "$(model_path "$MODEL")" ]] || die "Model $MODEL not downloaded; run ./bootstrap.sh"
+if (( ! REUSE_RUN )); then
+  [[ -n "$(model_glob "$MODEL")" ]] || die "Unknown MODEL '$MODEL'. Labels in GGUF_MODELS: $(model_labels | tr '\n' ' ')"
+  [[ -n "$(model_path "$MODEL")" ]] || die "Model $MODEL not downloaded; run ./bootstrap.sh"
+fi
 MODELS_SEL="$MODEL"
 
 STAMP="$(date +%Y%m%d-%H%M)"
@@ -64,13 +73,16 @@ if [[ "${MEASURE_POWER:-0}" == 1 ]]; then
 fi
 
 MTP_ARGS=()
-if [[ "$USE_MTP" == 1 ]] && llama_supports_mtp; then
+if (( REUSE_RUN )); then
+  :   # no servers in this suite
+elif [[ "$USE_MTP" == 1 ]] && llama_supports_mtp; then
   MTP_ARGS=(--spec-type draft-mtp --spec-draft-n-max "$MTP_DRAFT_N")
 elif [[ "$USE_MTP" == 1 ]]; then
   warn "This llama.cpp build has no draft-mtp; all MTP runs are skipped"
 fi
 
 if [[ "$SUITE" == ref4167 || "$SUITE" == mlx ]]; then MODELS_SEL=""; fi
+if (( ! REUSE_RUN )); then
 models_json="$(for m in $MODELS_SEL; do f="$(model_path "$m")"
   jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(stat -f %z "$f")" \
     '{label:$l, repo:$r, file:$f, bytes:($b|tonumber)}'; done | jq -sc .)"
@@ -78,6 +90,7 @@ python "$ROOT/bench/sysinfo.py" "$RUN/env.json" "$LLAMA_DIR" "$MODEL_NAME" \
   "$(jq -nc --arg s "$SUITE" --argjson models "$models_json" --arg kv "$KV_CACHE_TYPE" \
       --arg ctx "$SERVER_CTX" --arg mtp "${MTP_ARGS[*]:-}" \
       '{suite:$s, models:$models, kv_cache:$kv, server_ctx:($ctx|tonumber), mtp_args:$mtp}')"
+fi
 log "Run directory: $RUN"
 
 # ---- perf: llama-bench pp512/tg128 + context-depth sweep ------------------------
@@ -369,8 +382,7 @@ case "$SUITE" in
   server)  suite_server "$BENCHY_DEPTHS" 1 ;;
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
-  rescore) [[ -n "${RUN_DIR:-}" ]] || die "usage: RUN_DIR=results/<run> ./run.sh rescore"
-           suite_rescore ;;
+  rescore) suite_rescore ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;
   *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|rescore|agent|collect|compare)" ;;
 esac
