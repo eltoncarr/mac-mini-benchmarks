@@ -9,6 +9,7 @@
 #
 #   Individual suites: perf | server | coding | agent
 #   Machine-level (no GGUF model, run once): ref4167 | mlx
+#   RUN_DIR=results/<run> ./run.sh rescore      # re-score saved EvalPlus samples
 #   ./run.sh collect results/<run>               # rebuild summary.md
 #   ./run.sh compare results/<run> results/<run>  # side-by-side table -> results/compare-*.md
 #
@@ -232,6 +233,10 @@ suite_mlx() {
 }
 
 # ---- coding: EvalPlus HumanEval+/MBPP+ --------------------------------------------
+# macOS rejects EvalPlus's RLIMIT_AS memory cap ("current limit exceeds maximum limit"),
+# which made every test fail (0%). -1 disables only that cap; per-test timeouts remain.
+export EVALPLUS_MAX_MEMORY_BYTES=-1
+
 suite_coding() {  # <datasets>
   local datasets="$1" m ds
   for m in $MODELS_SEL; do
@@ -247,6 +252,25 @@ suite_coding() {  # <datasets>
     done
     stop_pid "$SERVER_PID"; SERVER_PID=""
   done
+}
+
+# Re-score saved EvalPlus samples without regenerating (e.g. after a scoring failure).
+suite_rescore() {
+  local f m ds n=0
+  for f in "$RUN"/evalplus/raw/*/*/*.jsonl; do
+    [[ -f "$f" && "$f" != *.raw.jsonl ]] || continue
+    m="$(basename "$(dirname "$(dirname "$f")")")"; ds="$(basename "$(dirname "$f")")"
+    log "Re-scoring EvalPlus $ds for $m: $f"
+    mkdir -p "$RUN/evalplus/$m"
+    # keep the old results aside; EvalPlus would otherwise reuse them (or prompt to overwrite)
+    local old="${f%.jsonl}_eval_results.json"
+    if [[ -f "$old" ]]; then mv "$old" "$old.$(date +%Y%m%d-%H%M%S).bak"; fi
+    if [[ -f "$RUN/evalplus/$m/$ds.log" ]]; then mv "$RUN/evalplus/$m/$ds.log" "$RUN/evalplus/$m/$ds.log.bak"; fi
+    evalplus.evaluate --dataset "$ds" --samples "$f" </dev/null \
+      2>&1 | tee "$RUN/evalplus/$m/$ds.log" | tail -n 4 || warn "EvalPlus re-score $ds for $m failed"
+    n=$((n + 1))
+  done
+  (( n )) || warn "no EvalPlus samples under $RUN/evalplus/raw/"
 }
 
 # ---- agent: SWE-bench with mini-swe-agent (real repos, fix-a-bug tasks) ----------
@@ -345,7 +369,9 @@ case "$SUITE" in
   server)  suite_server "$BENCHY_DEPTHS" 1 ;;
   mlx)     suite_mlx ;;
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
+  rescore) [[ -n "${RUN_DIR:-}" ]] || die "usage: RUN_DIR=results/<run> ./run.sh rescore"
+           suite_rescore ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;
-  *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|agent|collect|compare)" ;;
+  *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|rescore|agent|collect|compare)" ;;
 esac
 
