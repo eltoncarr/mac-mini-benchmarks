@@ -8,7 +8,8 @@ Reproducible local-LLM benchmarks for an **Apple Mac mini M5 Pro (64 GB)**, focu
 | `gsq-iq3s-mtp` (default) | [ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF](https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF) `Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf` | ~12 GB | GSQ+RCO non-uniform 3.5 bpw, with the MTP head for speculative decoding |
 | `q8_0` | [unsloth/Qwen3.8-27B-GGUF](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF) `*-Q8_0.gguf` | ~29 GB | standard 8-bit, near-lossless baseline |
 
-**Results: [RESULTS.md](RESULTS.md)** — same HumanEval+ score (89.6%), IQ3_S-mtp 1.3–2× faster.
+**Results: [RESULTS.md](RESULTS.md)** — same HumanEval+ score (89.6%), IQ3_S-mtp 1.3–2× faster;
+the Mac mini matches the M5 Pro MacBook Pro on llama.cpp's standard Llama-2 7B test.
 
 The question it answers: how much speed does the 12 GB build gain on this machine
 (smaller weights, plus MTP), and how much coding and agentic quality does it lose

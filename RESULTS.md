@@ -154,5 +154,33 @@ MTP draft acceptance in those runs was 73–76%. A task took about 1 hour (IQ3_S
 
 ## llama.cpp Apple Silicon reference (Discussion #4167)
 
-Pending: the Llama-2 7B F16 reference model was missing when `./run.sh ref4167` ran. The
-summary row for the thread will be added here once it has been run.
+The standard Llama-2 7B test from [llama.cpp Discussion #4167](https://github.com/ggml-org/llama.cpp/discussions/4167),
+run with llama-bench at the commit the thread asks for (`c1d0e7a00`), so it is directly
+comparable with every other Mac in that table. Raw data:
+[`results/20261011-1307_ref4167`](results/20261011-1307_ref4167).
+
+| Chip | BW (GB/s) | GPU Cores | F16 PP | F16 TG | Q8_0 PP | Q8_0 TG | Q4_0 PP | Q4_0 TG | commit |
+|---|---|---|---|---|---|---|---|---|---|
+| M5 Pro (Mac mini, 64 GB) | 307 | 20 | 1589.81 | 21.45 | 1579.50 | 38.97 | 1645.99 | 66.84 | c1d0e7a00 |
+| M5 Pro (MacBook Pro, from the thread) | 307 | 20 | 1588.78 | 21.55 | 1553.86 | 38.92 | 1620.64 | 66.33 | c1d0e7a |
+
+The Mac mini matches the MacBook Pro with the same 20-core M5 Pro: generation within 0.8%,
+prompt processing equal to 1.7% faster. Its cooling does not limit sustained inference, and
+the Qwen3.8 results above are typical for this chip.
+
+### Post for the thread
+
+```
+Mac mini (M5 Pro, 6P+12E CPU, 20-core GPU, 64 GB), macOS 27.0, build c1d0e7a00
+
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| llama 7B F16                   |  12.55 GiB |     6.74 B | MTL,BLAS   |       6 |           pp512 |       1589.81 ± 1.69 |
+| llama 7B F16                   |  12.55 GiB |     6.74 B | MTL,BLAS   |       6 |           tg128 |         21.45 ± 0.01 |
+| llama 7B Q8_0                  |   6.67 GiB |     6.74 B | MTL,BLAS   |       6 |           pp512 |       1579.50 ± 0.94 |
+| llama 7B Q8_0                  |   6.67 GiB |     6.74 B | MTL,BLAS   |       6 |           tg128 |         38.97 ± 0.35 |
+| llama 7B Q4_0                  |   3.53 GiB |     6.74 B | MTL,BLAS   |       6 |           pp512 |       1645.99 ± 1.44 |
+| llama 7B Q4_0                  |   3.53 GiB |     6.74 B | MTL,BLAS   |       6 |           tg128 |         66.84 ± 0.15 |
+
+build: c1d0e7a00 (10621)
+```
