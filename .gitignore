@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- mac-mini-benchmarks ---
+models/
+vendor/
+work/
+*.gguf
+*.safetensors
+results/**/swebench/trajs/
+results/**/swebench/logs/
+results/**/evalplus/raw/
+config.local.env
