@@ -1,0 +1,229 @@
+\begin{thebibliography}{32}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Barrios(2026)]{barrios2026native}
+Wayner Barrios.
+\newblock Native {LLM} and {MLLM} inference at scale on {Apple} silicon.
+\newblock \emph{arXiv preprint arXiv:2601.19139}, 2026.
+
+\bibitem[Bi et~al.(2026)Bi, Chen, Sun, Yao, Shen, Lou, and
+  Deng]{bi2026rooflinebench}
+Zhen Bi, Xueshu Chen, Luoyang Sun, Yuhang Yao, Qing Shen, Jungang Lou, and
+  Cheng Deng.
+\newblock {RooflineBench}: A benchmarking framework for on-device {LLMs} via
+  roofline analysis.
+\newblock \emph{arXiv preprint arXiv:2602.11506}, 2026.
+
+\bibitem[Chen et~al.(2023)Chen, Borgeaud, Irving, Lespiau, Sifre, and
+  Jumper]{chen2023speculative}
+Charlie Chen, Sebastian Borgeaud, Geoffrey Irving, Jean-Baptiste Lespiau,
+  Laurent Sifre, and John Jumper.
+\newblock Accelerating large language model decoding with speculative sampling.
+\newblock \emph{arXiv preprint arXiv:2302.01318}, 2023.
+
+\bibitem[Chen et~al.(2021)]{chen2021codex}
+Mark Chen et~al.
+\newblock Evaluating large language models trained on code.
+\newblock \emph{arXiv preprint arXiv:2107.03374}, 2021.
+
+\bibitem[Dadgarnia et~al.(2026)Dadgarnia, Tabesh, Nikdan, Helcig, Kurtic,
+  Kleinegger, and Alistarh]{dadgarnia2026gsq}
+Alireza Dadgarnia, Soroush Tabesh, Mahdi Nikdan, Michael Helcig, Eldar Kurtic,
+  Maximilian Kleinegger, and Dan Alistarh.
+\newblock {GSQ}: Highly-accurate low-precision scalar quantization for {LLMs}
+  via {Gumbel-Softmax} sampling.
+\newblock \emph{arXiv preprint arXiv:2604.18556}, 2026.
+
+\bibitem[{DeepSeek-AI}(2024)]{deepseek2024v3}
+{DeepSeek-AI}.
+\newblock {DeepSeek-V3} technical report.
+\newblock \emph{arXiv preprint arXiv:2412.19437}, 2024.
+
+\bibitem[Egiazarian et~al.(2024)Egiazarian, Panferov, Kuznedelev, Frantar,
+  Babenko, and Alistarh]{egiazarian2024aqlm}
+Vage Egiazarian, Andrei Panferov, Denis Kuznedelev, Elias Frantar, Artem
+  Babenko, and Dan Alistarh.
+\newblock Extreme compression of large language models via additive
+  quantization.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2024.
+\newblock arXiv:2401.06118.
+
+\bibitem[{eltoncarr}(2026)]{thisrepo}
+{eltoncarr}.
+\newblock mac-mini-benchmarks: Reproducible {LLM} benchmarks on an {Apple}
+  {Mac} mini {M5} {Pro}.
+\newblock \url{https://github.com/eltoncarr/mac-mini-benchmarks}, 2026.
+\newblock Code MIT, data CC BY 4.0.
+
+\bibitem[{eugr}()]{llamabenchy}
+{eugr}.
+\newblock llama-benchy: llama-bench style benchmarking for {OpenAI}-compatible
+  endpoints.
+\newblock \url{https://github.com/eugr/llama-benchy}.
+\newblock Version 0.4.0.
+
+\bibitem[{EvalPlus team}()]{evalplussoftware}
+{EvalPlus team}.
+\newblock {EvalPlus}.
+\newblock \url{https://github.com/evalplus/evalplus}.
+\newblock Version 0.3.1.
+
+\bibitem[Frantar et~al.(2023)Frantar, Ashkboos, Hoefler, and
+  Alistarh]{frantar2023gptq}
+Elias Frantar, Saleh Ashkboos, Torsten Hoefler, and Dan Alistarh.
+\newblock {GPTQ}: Accurate post-training quantization for generative
+  pre-trained transformers.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}, 2023.
+\newblock arXiv:2210.17323.
+
+\bibitem[Gerganov and {llama.cpp contributors}(2026)]{llamacpp}
+Georgi Gerganov and {llama.cpp contributors}.
+\newblock llama.cpp: {LLM} inference in {C/C++}.
+\newblock \url{https://github.com/ggml-org/llama.cpp}, 2026.
+\newblock Commit d4d82d67f (build b11516); llama-bench reference at commit
+  c1d0e7a00.
+
+\bibitem[Gloeckle et~al.(2024)Gloeckle, Youbi~Idrissi, Rozi{\`e}re, Lopez-Paz,
+  and Synnaeve]{gloeckle2024mtp}
+Fabian Gloeckle, Badr Youbi~Idrissi, Baptiste Rozi{\`e}re, David Lopez-Paz, and
+  Gabriel Synnaeve.
+\newblock Better \& faster large language models via multi-token prediction.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2024.
+\newblock arXiv:2404.19737.
+
+\bibitem[Helcig and Alistarh(2026)]{helcig2026rco}
+Michael Helcig and Dan Alistarh.
+\newblock Model compression with exact budget constraints via {Riemannian}
+  manifolds.
+\newblock \emph{arXiv preprint arXiv:2605.00649}, 2026.
+
+\bibitem[{IST Austria Distributed Algorithms and Systems Lab
+  (ISTA-DASLab)}(2026)]{istagguf}
+{IST Austria Distributed Algorithms and Systems Lab (ISTA-DASLab)}.
+\newblock {Qwen3.8-27B-GSQ-RCO-GGUF}.
+\newblock \url{https://huggingface.co/ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF},
+  2026.
+\newblock File Qwen3.8-27B-GSQ-RCO-IQ3\_S-mtp.gguf; accessed 2026-10-13.
+
+\bibitem[Javat and Kazakov(2026)]{javat2026silicon}
+Abdurrahman Javat and Allan Kazakov.
+\newblock Silicon showdown: Performance, efficiency, and ecosystem barriers in
+  consumer-grade {LLM} inference.
+\newblock \emph{arXiv preprint arXiv:2605.00519}, 2026.
+
+\bibitem[Kannan et~al.(2026)Kannan, Firke, Bengle, and
+  Deshmukh]{kannan2026greenbench}
+Rajeswari Kannan, Raj Firke, Shreya Bengle, and Srushti Deshmukh.
+\newblock {GreenBench}: Benchmarking energy efficiency and carbon footprint of
+  open-source {LLM} inference on {Apple} silicon.
+\newblock \emph{arXiv preprint arXiv:2608.28667}, 2026.
+
+\bibitem[Kurt(2026)]{kurt2026quant}
+Uygar Kurt.
+\newblock Which quantization should {I} use? a unified evaluation of llama.cpp
+  quantization on {Llama-3.1-8B-Instruct}.
+\newblock \emph{arXiv preprint arXiv:2601.14277}, 2026.
+
+\bibitem[Leviathan et~al.(2023)Leviathan, Kalman, and
+  Matias]{leviathan2023speculative}
+Yaniv Leviathan, Matan Kalman, and Yossi Matias.
+\newblock Fast inference from transformers via speculative decoding.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2023.
+\newblock arXiv:2211.17192.
+
+\bibitem[Lin et~al.(2024)Lin, Tang, Tang, Yang, Chen, Wang, Xiao, Dang, Gan,
+  and Han]{lin2024awq}
+Ji~Lin, Jiaming Tang, Haotian Tang, Shang Yang, Wei-Ming Chen, Wei-Chen Wang,
+  Guangxuan Xiao, Xingyu Dang, Chuang Gan, and Song Han.
+\newblock {AWQ}: Activation-aware weight quantization for on-device {LLM}
+  compression and acceleration.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, 2024.
+\newblock arXiv:2306.00978.
+
+\bibitem[Liu et~al.(2023)Liu, Xia, Wang, and Zhang]{liu2023evalplus}
+Jiawei Liu, Chunqiu~Steven Xia, Yuyao Wang, and Lingming Zhang.
+\newblock Is your code generated by {ChatGPT} really correct? rigorous
+  evaluation of large language models for code generation.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}, 2023.
+\newblock arXiv:2305.01210.
+
+\bibitem[{llama.cpp contributors}()]{llamacpp4167}
+{llama.cpp contributors}.
+\newblock Performance of llama.cpp on {Apple} silicon {M}-series.
+\newblock \url{https://github.com/ggml-org/llama.cpp/discussions/4167}.
+\newblock GitHub Discussion \#4167; accessed 2026-10-13.
+
+\bibitem[Pope et~al.(2023)Pope, Douglas, Chowdhery, Devlin, Bradbury, Levskaya,
+  Heek, Xiao, Agrawal, and Dean]{pope2023scaling}
+Reiner Pope, Sholto Douglas, Aakanksha Chowdhery, Jacob Devlin, James Bradbury,
+  Anselm Levskaya, Jonathan Heek, Kefan Xiao, Shivani Agrawal, and Jeff Dean.
+\newblock Efficiently scaling transformer inference.
+\newblock In \emph{Proceedings of Machine Learning and Systems (MLSys)}, 2023.
+\newblock arXiv:2211.05102.
+
+\bibitem[Qiu et~al.(2026)Qiu, Xu, Su, Chen, Xu, and Dai]{qiu2026ggufmeta}
+Xinyu Qiu, Chuhong Xu, Bo~Su, Ziyao Chen, Ruiyang Xu, and Shimeng Dai.
+\newblock {GGUF}-metadata prediction of single-sequence llama.cpp throughput
+  across three systems.
+\newblock \emph{arXiv preprint arXiv:2609.14864}, 2026.
+
+\bibitem[{Qwen Team}(2026)]{qwen38card}
+{Qwen Team}.
+\newblock {Qwen3.8-27B} model card.
+\newblock \url{https://huggingface.co/Qwen/Qwen3.8-27B}, 2026.
+\newblock Accessed 2026-10-13.
+
+\bibitem[Rajesh et~al.(2025)]{rajesh2025production}
+Varun Rajesh et~al.
+\newblock Production-grade local {LLM} inference on {Apple} silicon: A
+  comparative study of {MLX}, {MLC-LLM}, {Ollama}, llama.cpp, and {PyTorch}
+  {MPS}.
+\newblock \emph{arXiv preprint arXiv:2511.05502}, 2025.
+
+\bibitem[Sah(2026)]{sah2026beneath}
+Suwesh~Prasad Sah.
+\newblock Beneath the tokens: A performance engineering study of multi-token
+  prediction in {GPU}-accelerated {LLM} inference.
+\newblock \emph{arXiv preprint arXiv:2609.35188}, 2026.
+
+\bibitem[{Unsloth AI}(2026)]{unslothgguf}
+{Unsloth AI}.
+\newblock {Qwen3.8-27B-GGUF}.
+\newblock \url{https://huggingface.co/unsloth/Qwen3.8-27B-GGUF}, 2026.
+\newblock File Qwen3.8-27B-Q8\_0.gguf; accessed 2026-10-13.
+
+\bibitem[Waschkowski et~al.(2026)Waschkowski, Rathnayaka, and
+  Wesemann]{waschkowski2026basert}
+Fabian Waschkowski, Prabod Rathnayaka, and Lukas Wesemann.
+\newblock {BaseRT}: Advancing best-in-class {LLM} inference with {Apple} {M5}
+  neural accelerators.
+\newblock \emph{arXiv preprint arXiv:2607.19438}, 2026.
+
+\bibitem[Williams et~al.(2009)Williams, Waterman, and
+  Patterson]{williams2009roofline}
+Samuel Williams, Andrew Waterman, and David Patterson.
+\newblock Roofline: An insightful visual performance model for multicore
+  architectures.
+\newblock \emph{Communications of the ACM}, 52\penalty0 (4):\penalty0 65--76,
+  2009.
+
+\bibitem[Yang et~al.(2025)]{qwen2025qwen3}
+An~Yang et~al.
+\newblock {Qwen3} technical report.
+\newblock \emph{arXiv preprint arXiv:2505.09388}, 2025.
+
+\bibitem[Zhang et~al.(2026)Zhang, Fan, Munh{\'a}~Correia, Cheema, and
+  Zhang]{zhang2026siliconbench}
+Ranran~Haoran Zhang, Aysa~Xuemo Fan, David Munh{\'a}~Correia, Alex Cheema, and
+  Rui Zhang.
+\newblock {SiliconBench}: Speed, memory, and fidelity for {LLM} serving on
+  unified-memory desktops.
+\newblock \emph{arXiv preprint arXiv:2609.19169}, 2026.
+
+\end{thebibliography}

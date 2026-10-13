@@ -1,0 +1,14 @@
+\begin{tabular}{r rr rr rr rr}
+\toprule
+ & \multicolumn{4}{c}{prefill, pp512 (tokens/s)} & \multicolumn{4}{c}{decode, tg128 (tokens/s)} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+context & \multicolumn{2}{c}{IQ3\_S-mtp} & \multicolumn{2}{c}{Q8\_0} & \multicolumn{2}{c}{IQ3\_S-mtp} & \multicolumn{2}{c}{Q8\_0} \\
+ & mean & s.d. & mean & s.d. & mean & s.d. & mean & s.d. \\
+\midrule
+0 & 400.13 & 0.13 & 414.75 & 0.29 & 19.96 & 0.08 & 10.12 & 0.01 \\
+4\,096 & 339.42 & 1.02 & 352.81 & 1.40 & 19.06 & 0.06 & 9.97 & 0.02 \\
+16\,384 & 300.85 & 0.95 & 306.23 & 1.33 & 16.94 & 0.08 & 9.60 & 0.02 \\
+32\,768 & 254.87 & 1.84 & 255.81 & 1.02 & 15.69 & 0.25 & 9.14 & 0.02 \\
+65\,536 & 190.00 & 3.00 & 191.74 & 2.18 & 13.34 & 0.05 & 8.28 & 0.00 \\
+\bottomrule
+\end{tabular}

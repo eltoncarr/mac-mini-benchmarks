@@ -1,0 +1,17 @@
+\begin{tabular}{l rr}
+\toprule
+measure & IQ3\_S-mtp & Q8\_0 \\
+\midrule
+total decode, 1 parallel request, 0 context (tokens/s) & 18.7 & 10.1 \\
+total decode, 2 parallel requests, 0 context (tokens/s) & 24.0 & 18.2 \\
+total decode, 4 parallel requests, 0 context (tokens/s) & 41.0 & 33.1 \\
+scaling efficiency at 4 requests, 0 context & 0.55 & 0.82 \\
+total decode, 4 parallel requests, 4\,096 context (tokens/s) & 13.6 & 12.6 \\
+\midrule
+average power, llama-bench (W) & 35.6 & 29.4 \\
+average power, server, MTP off (W) & 35.4 & 33.6 \\
+average power, server, MTP on (W) & 36.0 & 34.7 \\
+energy per generated token, MTP off (J)$^\ddagger$ & 1.93 & 3.33 \\
+energy per generated token, MTP on (J)$^\ddagger$ & 1.25 & 1.53 \\
+\bottomrule
+\end{tabular}
