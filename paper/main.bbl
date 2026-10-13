@@ -1,4 +1,4 @@
-\begin{thebibliography}{32}
+\begin{thebibliography}{34}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -9,6 +9,12 @@
 Wayner Barrios.
 \newblock Native {LLM} and {MLLM} inference at scale on {Apple} silicon.
 \newblock \emph{arXiv preprint arXiv:2601.19139}, 2026.
+
+\bibitem[Benazir and Lin(2025)]{benazir2025profiling}
+Afsara Benazir and Felix~Xiaozhu Lin.
+\newblock Profiling large language model inference on {Apple} silicon: A
+  quantization perspective.
+\newblock \emph{arXiv preprint arXiv:2508.08531}, 2025.
 
 \bibitem[Bi et~al.(2026)Bi, Chen, Sun, Yao, Shen, Lou, and
   Deng]{bi2026rooflinebench}
@@ -71,6 +77,13 @@ Vage Egiazarian, Andrei Panferov, Denis Kuznedelev, Elias Frantar, Artem
 \newblock {EvalPlus}.
 \newblock \url{https://github.com/evalplus/evalplus}.
 \newblock Version 0.3.1.
+
+\bibitem[Fonal(2026)]{fonal2026crossfamily}
+Krzysztof Fonal.
+\newblock Cross-family speculative decoding for {Polish} language models on
+  {Apple} silicon: An empirical evaluation of {Bielik} {11B} with
+  {UAG}-extended {MLX-LM}.
+\newblock \emph{arXiv preprint arXiv:2604.16368}, 2026.
 
 \bibitem[Frantar et~al.(2023)Frantar, Ashkboos, Hoefler, and
   Alistarh]{frantar2023gptq}
@@ -179,8 +192,10 @@ Xinyu Qiu, Chuhong Xu, Bo~Su, Ziyao Chen, Ruiyang Xu, and Shimeng Dai.
 \newblock \url{https://huggingface.co/Qwen/Qwen3.8-27B}, 2026.
 \newblock Accessed 2026-10-13.
 
-\bibitem[Rajesh et~al.(2025)]{rajesh2025production}
-Varun Rajesh et~al.
+\bibitem[Rajesh et~al.(2025)Rajesh, Jodhpurkar, Anbuselvan, Singh, Jallepali,
+  Godbole, Sharma, and Shrivastava]{rajesh2025production}
+Varun Rajesh, Om~Jodhpurkar, Pooja Anbuselvan, Mantinder Singh, Ashok
+  Jallepali, Shantanu Godbole, Pradeep~Kumar Sharma, and Hritvik Shrivastava.
 \newblock Production-grade local {LLM} inference on {Apple} silicon: A
   comparative study of {MLX}, {MLC-LLM}, {Ollama}, llama.cpp, and {PyTorch}
   {MPS}.

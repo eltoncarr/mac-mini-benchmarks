@@ -107,8 +107,11 @@ M2 Ultra; \citet{barrios2026native} present an MLX-native serving system and rep
 throughput than llama.cpp on an M4 Max; \citet{javat2026silicon} compare consumer NVIDIA and
 Apple systems; \citet{zhang2026siliconbench} evaluate nine serving engines on unified-memory
 desktops for speed, memory and output fidelity; and \citet{waschkowski2026basert} report
-substantially higher prefill throughput than llama.cpp on the M5 Pro by using its GPU
-neural accelerators. \citet{kannan2026greenbench} study energy per token on an M4 Pro.
+up to 6.4$\times$ higher prefill and 1.75$\times$ higher decode throughput than llama.cpp on the
+M5 Pro, using its GPU neural accelerators for prefill. \citet{kannan2026greenbench} study energy
+per token on an M4 Pro, and \citet{benazir2025profiling} profile quantized inference on three
+M-series chips against NVIDIA GPUs, finding that lower bit precision does not by itself make
+inference faster.
 These works vary the engine or the hardware. We hold both fixed and vary the weight format
 and the decoding technique, so the differences we report are attributable to them.
 
@@ -135,7 +138,9 @@ Speculative decoding~\cite{leviathan2023speculative,chen2023speculative} verifie
 drafted tokens in one forward pass. Multi-token prediction heads~\cite{gloeckle2024mtp},
 used in DeepSeek-V3~\cite{deepseek2024v3}, can serve as the drafter.
 \citet{sah2026beneath} profile two-token MTP on a datacenter GPU and attribute its gains to
-amortizing repeated execution per generated token. We measure MTP on a bandwidth-bound
+amortizing repeated execution per generated token. On Apple Silicon,
+\citet{fonal2026crossfamily} find that draft-model speculative decoding in MLX-LM amortizes less
+than theory predicts because draft and target are both bandwidth-bound. We measure MTP on a bandwidth-bound
 consumer device and show that its gain depends on the weight format.
 
 % ===========================================================================
@@ -256,7 +261,7 @@ Both formats prefill at about the same rate (\IQppZero\ vs.\ \QEppZero\ tokens/s
 context, \IQppLong\ vs.\ \QEppLong\ at 64k; Figure~\ref{fig:prefill}). Per-token prefill time
 again fits a line ($R^2 \geq \IQppR$), with nearly identical intercepts (\IQppA\ and \QEppA\,ms)
 and slopes (\IQppB\ and \QEppB\,ms per 1k tokens). The smaller format confers no prefill
-advantage. Consequently, a fresh 64k-token prompt takes \IQttftLong\,s (IQ3\_S) and
+advantage, consistent with \citet{benazir2025profiling}. Consequently, a fresh 64k-token prompt takes \IQttftLong\,s (IQ3\_S) and
 \QEttftLong\,s (Q8\_0) to its first token (Figure~\ref{fig:ttft}). When the context is already
 in llama-server's prompt cache, the first token arrives up to \cacheMax$\times$ sooner (about
 2\,s at 32k), which is the regime of multi-turn chat and coding agents. Work on M5 Pro
