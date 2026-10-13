@@ -41,8 +41,13 @@ def rows_for_run(run, rows):
     for b in S.get("llama_bench", []):
         add("prefill_tokens_per_s" if b["n_prompt"] else "generation_tokens_per_s", b["avg_ts"], "tokens/s",
             "llama-bench", ctx=b["n_depth"], prompt=b["n_prompt"] or None)
+    def variant(name, prefix):
+        """Suffix after the run's own label, e.g. "" / "-mtp" / "-prefix-cache". Model labels
+        can themselves end in "-mtp" (gsq-iq3s-mtp), so never test the full name's ending."""
+        return name[len(prefix):] if name.startswith(prefix) else None
+
     for lab, d in S.get("benchy", {}).items():
-        mtp = lab.endswith("-mtp")
+        mtp = variant(lab, f"llama.cpp-{label}") == "-mtp"
         kind = "prefix-cache" if "prefix-cache" in lab else "concurrency" if "concurrency" in lab else "api"
         tool = f"llama-benchy {d.get('version', '')} ({kind})".replace("  ", " ")
         for b in d.get("benchmarks", []):
@@ -58,7 +63,7 @@ def rows_for_run(run, rows):
                 add("time_to_first_token_s", b["e2e_ttft"]["mean"] / 1000, "s", tool, ctx, mtp, conc, prompt,
                     "context served from prompt cache" if kind == "prefix-cache" else "uncached")
     for lab, s in S.get("server", {}).items():
-        mtp = lab.endswith("-mtp")
+        mtp = variant(lab, f"llama.cpp-{label}") == "-mtp"
         tool = "short-chat stream (256 tokens, code, thinking off)"
         add("generation_tokens_per_s", s["decode_tps"], "tokens/s", tool, mtp=mtp)
         add("time_to_first_token_s", s["ttft_s"], "s", tool, mtp=mtp)
@@ -67,9 +72,9 @@ def rows_for_run(run, rows):
         add(f"{ds}_pass_at_1", 100 * v["base_pass@1"], "%", tool)
         if v.get("plus_pass@1") is not None:
             add(f"{ds}_plus_pass_at_1", 100 * v["plus_pass@1"], "%", tool)
-    for phase, p in S.get("power", {}).items():
-        add("avg_power_w", p["avg_w"], "W", "powermetrics (CPU+GPU+ANE)", mtp=phase.endswith("-mtp"),
-            note=phase.replace(f"-{label}", "").removesuffix("-mtp"))
+    for phase, p in S.get("power", {}).items():   # e.g. llama-bench-<label>, server-<label>, server-<label>-mtp
+        stem, _, rest = phase.partition(f"-{label}")
+        add("avg_power_w", p["avg_w"], "W", "powermetrics (CPU+GPU+ANE)", mtp=rest == "-mtp", note=stem)
     return S["env"], {**m, "name": name, "file_gib": round(m["bytes"] / 2**30, 2)}
 
 
