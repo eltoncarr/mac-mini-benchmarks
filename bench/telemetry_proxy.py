@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Transparent proxy between an agent and llama-server that logs per-request
-llama.cpp timings to JSONL. This records how prefill/decode speed and TTFT
-change as the agent's context grows during real agentic runs.
+"""Transparent proxy between an agent and llama-server (or vLLM) that logs
+per-request llama.cpp timings (vLLM: token counts from `usage`) to JSONL. This
+records how prefill/decode speed and TTFT change as the agent's context grows
+during real agentic runs.
 
   python bench/telemetry_proxy.py --listen 8081 --upstream http://127.0.0.1:8080 --log calls.jsonl
 """
@@ -29,6 +30,11 @@ def record(path, req_body, status, timings, usage, wall_s, ttft_s, streamed):
         "usage": usage,
         "n_messages": len(req_body.get("messages", [])) if isinstance(req_body, dict) else None,
     }
+    if t.get("prompt_n") is None and usage:  # vLLM: no timings; usage has the token counts
+        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+        if usage.get("prompt_tokens") is not None:
+            row["prompt_n"], row["cache_n"] = usage["prompt_tokens"] - cached, cached
+        row["predicted_n"] = usage.get("completion_tokens")
     if row["prompt_n"] is not None:
         row["context_tokens"] = (row["prompt_n"] or 0) + (row["cache_n"] or 0)
     elif usage:

@@ -78,6 +78,62 @@ def ref4167_row(raw, env):
             f" | {build.group(1) if build else '?'} |")
 
 
+def vllm_bench(run, S, md):
+    """`vllm bench serve` results (vllm/run.sh): <label>_in<N>_out<M>_c<C>.json."""
+    rows = []
+    for f in sorted((run / "vllm_bench").glob("*.json")):
+        d = load(f)
+        m = re.match(r"(.+)_in(\d+)_out(\d+)_c(\d+)$", f.stem)
+        if not d or not m or not d.get("completed"):
+            continue
+        n_in, n_out, conc = int(m.group(2)), int(m.group(3)), int(m.group(4))
+        ttft, tpot = d.get("median_ttft_ms"), d.get("median_tpot_ms")
+        rows.append({"config": m.group(1), "n_in": n_in, "n_out": n_out, "concurrency": conc,
+                     "completed": d.get("completed"), "ttft_ms": ttft, "ttft_p99_ms": d.get("p99_ttft_ms"),
+                     "prefill_tps": n_in / ttft * 1000 if ttft else None,
+                     "tpot_ms": tpot, "decode_tps": 1000 / tpot if tpot else None,
+                     "itl_p99_ms": d.get("p99_itl_ms"), "e2el_ms": d.get("median_e2el_ms"),
+                     "output_tps": d.get("output_throughput"), "total_tps": d.get("total_token_throughput")})
+    rows.sort(key=lambda r: (r["config"], r["concurrency"], r["n_in"]))
+    S["vllm_bench"] = rows
+    # single-request sweep in llama-bench shape (pp = prefill of the whole prompt, tg = decode at that context)
+    env = S.get("env") or {}
+    label = next((x["label"] for x in env.get("models", [])), None)
+    pp = env.get("perf_pp", 512)
+    perf = [r for r in rows if r["config"].endswith("-perf")]
+    S["vllm_perf"] = ([dict(model=label, n_depth=r["n_in"] - pp, n_prompt=r["n_in"], n_gen=None, avg_ts=r["prefill_tps"]) for r in perf] +
+                      [dict(model=label, n_depth=r["n_in"] - pp, n_prompt=None, n_gen=r["n_out"], avg_ts=r["decode_tps"]) for r in perf])
+    if not rows:
+        return
+    md += ["## vllm bench serve (random prompts, greedy, ignore_eos)", "",
+           "Medians over the prompts. prefill t/s = prompt tokens / TTFT; decode t/s = 1000 / TPOT "
+           "(per request). `-perf` is one request at a time; `-sweep` adds concurrency.", "",
+           "| config | prompt | output | conc | TTFT ms | TTFT p99 | prefill t/s | TPOT ms | decode t/s | ITL p99 ms | out t/s total |",
+           "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    md += [f"| {r['config']} | {r['n_in']} | {r['n_out']} | {r['concurrency']} | {fmt(r['ttft_ms'], 0)} | "
+           f"{fmt(r['ttft_p99_ms'], 0)} | {fmt(r['prefill_tps'])} | {fmt(r['tpot_ms'])} | {fmt(r['decode_tps'])} | "
+           f"{fmt(r['itl_p99_ms'])} | {fmt(r['output_tps'])} |" for r in rows]
+    md.append("")
+    spec = {}
+    for f in sorted((run / "server").glob("*.metrics.txt")):
+        tot = {}
+        for line in f.read_text().splitlines():
+            m = re.match(r"^vllm:(spec_decode_num_(?:draft|accepted)_tokens|prefix_cache_(?:hits|queries))(?:_total)?(?:\{[^}]*\})?\s+([\d.e+]+)$", line)
+            if m:
+                tot[m.group(1)] = tot.get(m.group(1), 0) + float(m.group(2))
+        if tot:
+            spec[f.name.removesuffix(".metrics.txt")] = tot
+    S["vllm_metrics"] = spec
+    if spec:
+        md += ["| server phase | drafted | accepted | acceptance | prefix-cache hit ratio |", "|---|---:|---:|---:|---:|"]
+        for k, t in spec.items():
+            dr, ac = t.get("spec_decode_num_draft_tokens"), t.get("spec_decode_num_accepted_tokens")
+            q, h = t.get("prefix_cache_queries"), t.get("prefix_cache_hits")
+            md.append(f"| {k} | {fmt(dr, 0)} | {fmt(ac, 0)} | {fmt(100 * ac / dr if dr else None)}{'%' if dr else ''} | "
+                      f"{fmt(100 * h / q if q else None)}{'%' if q else ''} |")
+        md.append("")
+
+
 def mlx(run, S, md):
     out = {}
     for f in sorted((run / "mlx").glob("*.txt")):
@@ -319,8 +375,10 @@ def comparison(S, env):
     if not models:
         return []
 
+    perf = S.get("llama_bench", []) + S.get("vllm_perf", [])
+
     def lb(m, test, depth=0):
-        for r in S.get("llama_bench", []):
+        for r in perf:
             if r["model"] == m and r["n_depth"] == depth and ((test == "pp" and r["n_prompt"]) or (test == "tg" and r["n_gen"])):
                 return r["avg_ts"]
 
@@ -339,29 +397,38 @@ def comparison(S, env):
 
     sizes = {m["label"]: m["bytes"] / 2**30 for m in env.get("models", [])}
     # deepest context that every model was measured at (runs can use different sweeps)
-    per_model = [{r["n_depth"] for r in S.get("llama_bench", []) if r["model"] == m} for m in models]
+    per_model = [{r["n_depth"] for r in perf if r["model"] == m} for m in models]
     common = set.intersection(*per_model) if all(per_model) else set()
     depth = max(common or {0})
+    # llama.cpp runs label results llama.cpp-<model>[-mtp]; vLLM runs vllm-<model>[-ngram]
+    info = {x["label"]: x for x in env.get("models", [])}
+    srv = {m: (info.get(m) or {}).get("server_label", f"llama.cpp-{m}") for m in models}
+    spec = {m: (info.get(m) or {}).get("spec", "mtp") for m in models}
+    sp = "MTP" if set(spec.values()) == {"mtp"} else "spec"
     md = ["## Comparison", "",
-          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | chat tg | chat tg MTP | API tg | API tg MTP | API TTFT ms | HumanEval+ | SWE-bench |",
+          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | chat tg | chat tg {sp} | API tg | API tg {sp} | API TTFT ms | HumanEval+ | SWE-bench |",
           "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for m in models:
         ev = (S.get("evalplus", {}).get(m) or {}).get("humaneval") or {}
         sws = [o for o in (S.get("swebench") or {}).values() if o.get("model") == m and o.get("resolved") is not None]
         swr = ", ".join(f"{o['resolved']}/{o['submitted']} {o.get('subset', '')}".strip() for o in sws) or "—"
         md.append(f"| {m} | {fmt(sizes.get(m), 2)} | {fmt(lb(m, 'pp'))} | {fmt(lb(m, 'tg'))} | "
-                  f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(chat_tps(f'llama.cpp-{m}'))} | "
-                  f"{fmt(chat_tps(f'llama.cpp-{m}-mtp'))} | {fmt(benchy_tg(f'llama.cpp-{m}'))} | "
-                  f"{fmt(benchy_tg(f'llama.cpp-{m}-mtp'))} | {fmt(ttft(f'llama.cpp-{m}'), 0)} | "
+                  f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(chat_tps(srv[m]))} | "
+                  f"{fmt(chat_tps(f'{srv[m]}-{spec[m]}'))} | {fmt(benchy_tg(srv[m]))} | "
+                  f"{fmt(benchy_tg(f'{srv[m]}-{spec[m]}'))} | {fmt(ttft(srv[m]), 0)} | "
                   f"{fmt(100 * ev['plus_pass@1']) + '%' if ev.get('plus_pass@1') is not None else '—'} | {swr} |")
     md += ["", "pp/tg in tokens/s. llama-bench columns (pp512, tg128) are the engine alone. chat tg is the "
            "short-chat stream (256 tokens, thinking off) through llama-server; API columns are llama-benchy. "
            "MTP columns are empty when MTP did not run.", ""]
+    if any(s != "mtp" for s in spec.values()):
+        md += ["For vLLM models pp512/tg128 come from `vllm bench serve` (one request, through the server; the "
+               "depth column is the prompt length minus 512), and the spec columns are n-gram speculation "
+               "(vllm-metal has no MTP for hybrid Qwen3.8).", ""]
     md += [f"- `{m['label']}`: [{m['repo']}](https://huggingface.co/{m['repo']}) `{m['file']}`" for m in env.get("models", [])]
     return md + [""]
 
 
-SECTIONS = (llama_bench, benchy, server, mlx, evalplus, swebench, power)
+SECTIONS = (llama_bench, vllm_bench, benchy, server, mlx, evalplus, swebench, power)
 
 
 def gather(run):
@@ -380,28 +447,37 @@ def header(env, run_name):
     m = env.get("machine", {})
     return [f"# {env.get('model', 'Model')} on {m.get('model_name', 'Mac')} ({m.get('chip', '?')}, {m.get('memory_gb', '?')} GB)",
             "", f"Run `{run_name}` · macOS {m.get('macos', '?')} · GPU cores {m.get('gpu_cores', '?')} · "
-            f"llama.cpp `{env.get('llama_cpp_commit', '?')}`", ""]
+            f"{engine(env)}", ""]
+
+
+def engine(env):
+    if env.get("engine"):
+        v = env.get("engine_versions") or {}
+        return f"{env['engine']} (vLLM {v.get('vllm', '?')}, MLX {v.get('mlx', '?')})"
+    return f"llama.cpp `{env.get('llama_cpp_commit', '?')}`"
 
 
 def compare(out, runs):
-    merged, menv, notes = {"llama_bench": [], "benchy": {}, "server": {}, "evalplus": {}, "swebench": {}}, {"models": []}, []
+    merged, menv, notes = ({"llama_bench": [], "vllm_perf": [], "benchy": {}, "server": {}, "evalplus": {}, "swebench": {}},
+                           {"models": []}, [])
     for run in runs:
         S, env, _ = gather(run)
         merged["llama_bench"] += S.get("llama_bench", [])
+        merged["vllm_perf"] += S.get("vllm_perf", [])
         for k in ("benchy", "server", "evalplus", "swebench"):
             merged[k].update(S.get(k) or {})
         menv["models"] += env.get("models", [])
         menv.setdefault("first", env)
         notes.append(f"| `{run.name}` | {', '.join(m['label'] for m in env.get('models', [])) or '—'} | "
-                     f"{env.get('suite', '?')} | `{env.get('llama_cpp_commit', '?')}` | {env.get('machine', {}).get('macos', '?')} |")
+                     f"{env.get('suite', '?')} | {engine(env)} | {env.get('machine', {}).get('macos', '?')} |")
     commits = {n.split('|')[4].strip() for n in notes}
     suites = {n.split('|')[3].strip() for n in notes}
     md = header(menv["first"], ", ".join(r.name for r in runs)) + comparison(merged, menv)
     if merged["swebench"]:
         md += ["### SWE-bench", ""] + swebench_table(merged["swebench"]) + [""]
-    md += ["### Runs", "", "| run | model | suite | llama.cpp | macOS |", "|---|---|---|---|---|"] + notes + [""]
+    md += ["### Runs", "", "| run | model | suite | engine | macOS |", "|---|---|---|---|---|"] + notes + [""]
     if len(commits) > 1:
-        md += ["> Runs used different llama.cpp commits; speed numbers may not be directly comparable.", ""]
+        md += ["> Runs used different engines or llama.cpp commits; speed numbers may not be directly comparable.", ""]
     if len(suites) > 1:
         md += ["> Runs are different suites (e.g. quick vs standard); SWE-bench subsets and reps differ.", ""]
     pathlib.Path(out).write_text("\n".join(md) + "\n")

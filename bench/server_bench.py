@@ -34,9 +34,9 @@ def chat(args, max_tokens):
         "max_tokens": max_tokens,
         "stream": True,
         "stream_options": {"include_usage": True},
-        "temperature": 0.7, "top_p": 0.8, "top_k": 20,
+        "temperature": args.temperature, "top_p": 0.8, "top_k": 20,
         "chat_template_kwargs": {"enable_thinking": False},
-        "ignore_eos": True,  # fixed output length (llama.cpp; ignored elsewhere)
+        "ignore_eos": True,  # fixed output length (llama.cpp and vLLM)
     }
     req = urllib.request.Request(
         args.base_url.rstrip("/") + "/chat/completions", data=json.dumps(payload).encode(),
@@ -81,6 +81,8 @@ def main():
     ap.add_argument("--model", default="local")
     ap.add_argument("--label", default="")
     ap.add_argument("--reps", type=int, default=3)
+    ap.add_argument("--temperature", type=float, default=0.7,
+                    help="0 for engines that speculate on greedy requests only (vllm-metal n-gram)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 

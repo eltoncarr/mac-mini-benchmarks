@@ -55,6 +55,17 @@ git clone https://github.com/eltoncarr/mac-mini-benchmarks && cd mac-mini-benchm
 cat results/*/summary.md
 ```
 
+## vLLM (vllm-metal)
+
+[`vllm/`](vllm/README.md) runs the same protocol on vLLM with the vllm-metal plugin
+(MLX 4-bit/8-bit builds of the same model, n-gram speculation instead of MTP, plus a
+`vllm bench serve` concurrency sweep). Its runs use the same results layout, so
+`./run.sh compare` puts llama.cpp and vLLM side by side:
+
+```bash
+vllm/bootstrap.sh && vllm/run.sh quick
+```
+
 ## Final run (publishable results)
 
 `./run.sh final` is the fixed protocol for published numbers: the full llama-bench depth
@@ -208,6 +219,7 @@ bench/tokenizer_fix.py  builds/validates the tokenizer.json llama-benchy needs
 bench/collect.py        builds summary.md / summary.json
 bench/sysinfo.py        env.json
 results/<run>/          raw JSON/logs + summary.md (trajectories and eval logs are git-ignored)
+vllm/                   the vLLM (vllm-metal) harness: bootstrap.sh, run.sh, config.env
 ```
 
 ## Exporting data
