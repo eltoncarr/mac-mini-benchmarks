@@ -55,6 +55,44 @@ git clone https://github.com/eltoncarr/mac-mini-benchmarks && cd mac-mini-benchm
 cat results/*/summary.md
 ```
 
+## Agentic coding on the Mac mini and DGX Spark: Terminal-Bench 2.0
+
+[Terminal-Bench 2.0](https://www.tbench.ai/) (89 tasks: build, debug, configure and code
+in a real Linux shell) runs with its reference agent Terminus-2 through its official
+harness, [Harbor](https://github.com/harbor-framework/harbor). The task set is pinned by the
+Harbor registry, and the same command runs on both machines. The harness also runs on Linux
+with an NVIDIA GPU: `./bootstrap.sh` builds llama.cpp with CUDA there instead of Metal.
+
+```bash
+# on each machine (Mac mini and DGX Spark), same repo commit and same LLAMA_CPP_REF
+./bootstrap.sh --no-mlx                      # llama.cpp (Metal or CUDA), models, Harbor
+./run.sh tbench-check                        # once per machine: reference solutions on this machine's images
+./run.sh tbench smoke                        # 1 task (fix-git): checks the whole pipeline
+./run.sh tbench                              # all 89 tasks with gsq-iq3s-mtp (MODEL=q8_0 for Q8_0)
+# copy the result folders to one machine, then
+./run.sh compare results/<mac run> results/<spark run>   # rows labelled "q8_0 @ Mac mini", "q8_0 @ NVIDIA DGX Spark"
+```
+
+How the comparison is kept fair:
+
+- **Same everything except the machine:** same GGUF, llama.cpp commit and flags (`-fa on`,
+  q8_0 KV, MTP), same Harbor version, agent, sampling (Qwen's thinking-mode settings) and
+  `TB_CONCURRENT` (1 by default: one agent, one server slot).
+- **Official time limits** (`TB_TIMEOUT_MULTIPLIER=1`). Each task has its own agent timeout
+  (10 min to 3 h, 15 min for most), so a faster machine finishes more tasks: the score
+  measures model + machine, as the leaderboard does for model + API. Timeouts are counted
+  separately in `summary.md`. `TB_TIMEOUT_MULTIPLIER=4` makes the score closer to a property of the model alone.
+- **Native task images** (`TB_NATIVE_BUILD=1`): both machines are arm64, and the published
+  task images are x86_64. Emulating them would slow the task's own commands (compiles, tests) by
+  different amounts on Rosetta and QEMU. Harbor builds each image from the task's Dockerfile
+  instead. `tbench-check` runs every reference solution on those images, and `summary.md`
+  lists any task that fails for all models on that machine.
+
+Expect a full pass to take a day or more per model at one task at a time (the sum of the
+time limits is ~41 h; tasks a model solves end early). `TB_TASKS="fix-* build-*"` runs a subset.
+Agent calls go through the telemetry proxy, so `summary.md` also shows prefill/decode speed,
+TTFT and MTP acceptance as the agent's context grows, per machine.
+
 ## vLLM (vllm-metal)
 
 [`vllm/`](vllm/README.md) runs the same protocol on vLLM with the vllm-metal plugin
@@ -102,6 +140,7 @@ Check `problems.log` in each run folder: an empty file means every step ran.
 | | `bench/server_bench.py` | what llama-benchy doesn't report: inter-token latency p50/p90/p99, TPOT and e2e latency for a short chat request |
 | `mlx` (run once) | `mlx_lm.benchmark`, then llama-benchy against `mlx_lm.server` | prompt/generation t/s and peak memory for the MLX 4-bit build, and the same API numbers as llama.cpp |
 | `coding` | [EvalPlus](https://github.com/evalplus/evalplus) | HumanEval+ (and MBPP+ in `full`) pass@1, greedy |
+| `tbench` | [Terminal-Bench 2.0](https://www.tbench.ai/) with Terminus-2 via [Harbor](https://github.com/harbor-framework/harbor) | tasks passed (official verifier), how failures ended (tests, timeout, error), per-call telemetry as for SWE-bench |
 | `agent` | [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent) on [SWE-bench Verified](https://www.swebench.com/) | % resolved (official harness), plus a **per-call telemetry log** of the agent's real requests: context size, TTFT, prefill/decode t/s, prefix-cache hits and MTP acceptance as the context grows |
 | power (optional) | `powermetrics` | average/max CPU+GPU+ANE watts per phase (`MEASURE_POWER=1`) |
 
@@ -134,8 +173,8 @@ sampling, and a step limit (`SWE_STEP_LIMIT`, default 100).
 
 ```
 [MODEL=<label>] ./run.sh quick | standard | full
-[MODEL=<label>] ./run.sh perf | server | coding | agent [smoke|mini|verified]
-./run.sh ref4167 | mlx                    # machine-level, not tied to a GGUF model; run once
+[MODEL=<label>] ./run.sh perf | server | coding | agent [smoke|mini|verified] | tbench [smoke|all]
+./run.sh ref4167 | mlx | tbench-check     # machine-level, not tied to a GGUF model; run once
 RUN_DIR=results/<run> ./run.sh coding     # add a suite to an existing run
 ./run.sh collect results/<run>            # rebuild summary.md / summary.json
 ./run.sh compare results/<run> ...        # side-by-side table of several runs

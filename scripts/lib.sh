@@ -10,6 +10,7 @@ if [[ -f "$ROOT/config.local.env" ]]; then source "$ROOT/config.local.env"; fi
 VENV="$ROOT/.venv"
 VENDOR="$ROOT/vendor"
 MODELS="$ROOT/models"
+HARBOR_VENV="$VENDOR/harbor-venv"   # Terminal-Bench harness, kept apart from the other clients
 LLAMA_DIR="$VENDOR/llama.cpp"
 LLAMA_BIN="$LLAMA_DIR/build/bin"
 export HF_HOME="${HF_HOME:-$ROOT/models/.hf}"
@@ -18,6 +19,19 @@ export PYTHONUNBUFFERED=1   # Python tools write to log files; show progress as 
 # Local servers (llama-server, proxy, mlx_lm.server) must bypass any HTTP(S) proxy
 # for the Python clients too (server_bench, llama-benchy, mini-swe-agent, EvalPlus).
 export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}" no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"
+
+# Platform: macOS on Apple silicon (Metal) or Linux with an NVIDIA GPU (CUDA, e.g. DGX Spark).
+OS="$(uname -s)"
+is_mac() { [[ "$OS" == Darwin ]]; }
+file_bytes() { if is_mac; then stat -f %z "$1"; else stat -c %s "$1"; fi; }
+# Keep the machine awake while the calling shell runs.
+keep_awake() {
+  if is_mac; then caffeinate -dimsu -w $$ &
+  elif command -v systemd-inhibit >/dev/null; then
+    systemd-inhibit --what=sleep:idle --why="benchmark run" --mode=block \
+      bash -c "while kill -0 $$ 2>/dev/null; do sleep 30; done" &
+  fi
+}
 
 log()  { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 # During a run, warnings and errors are also kept in $RUN/problems.log for summary.md.
@@ -142,9 +156,15 @@ stop_pid() {
 }
 
 # Optional power sampling. start_power <outfile>; sets POWER_PID.
+# macOS: powermetrics (CPU+GPU+ANE, needs sudo). Linux: nvidia-smi GPU board power, 1 s samples.
 start_power() {
   POWER_PID=""
   [[ "${MEASURE_POWER:-0}" == 1 ]] || return 0
+  if ! is_mac; then
+    nvidia-smi --query-gpu=timestamp,power.draw --format=csv,noheader,nounits -lms 1000 >"$1" 2>/dev/null &
+    POWER_PID=$!
+    return 0
+  fi
   sudo -n true 2>/dev/null || { warn "MEASURE_POWER=1 but sudo needs a password; run 'sudo -v' first"; return 0; }
   # shellcheck disable=SC2024  # output file is owned by the user on purpose
   sudo powermetrics --samplers cpu_power,gpu_power -i 1000 >"$1" 2>/dev/null &
@@ -152,6 +172,6 @@ start_power() {
 }
 stop_power() {
   [[ -n "${POWER_PID:-}" ]] || return 0
-  sudo kill "$POWER_PID" 2>/dev/null || true
+  if is_mac; then sudo kill "$POWER_PID" 2>/dev/null || true; else kill "$POWER_PID" 2>/dev/null || true; fi
   POWER_PID=""
 }

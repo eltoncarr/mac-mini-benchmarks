@@ -20,11 +20,13 @@ back to `results/<run>/summary.md` (or this repo, if you make it public) for the
 | Venue | What to post | How |
 |---|---|---|
 | [SWE-bench leaderboards](https://www.swebench.com/) (bash-only / mini-swe-agent) | Full SWE-bench Verified (500) run: `preds.json` + trajectories | Submissions go through a PR to [SWE-bench/experiments](https://github.com/SWE-bench/experiments) and must be the full split with trajectories; Verified Mini (50) and smoke runs are not accepted. The bash-only board is run by the SWE-bench team on the same mini-swe-agent setup, so a local quantized Qwen3.8 result is comparable but should be labeled with its quant. |
+| [Terminal-Bench 2.0 leaderboard](https://www.tbench.ai/leaderboard) | Full 89-task run: the Harbor job folder (`results/<run>/tbench/<model>/all/job/`) | Submissions go through the Terminal-Bench / Harbor submission process and must follow its rules (full task set, default timeouts, several attempts per task: set `TB_ATTEMPTS`). A local result on native arm64 images should say so; the per-machine Mac mini vs DGX Spark comparison is better posted with the speed numbers (r/LocalLLaMA, the NVIDIA DGX Spark forum). |
 | [EvalPlus leaderboard](https://evalplus.github.io/leaderboard.html) | HumanEval+/MBPP+ pass@1 | Open an issue on [evalplus/evalplus](https://github.com/evalplus/evalplus) with the samples file from `results/<run>/evalplus/raw/`. They usually list full-precision models; a quantized local result is better posted alongside the speed numbers. |
 
 ## Checklist for any post
 
-- Hardware: Mac mini, M5 Pro, CPU/GPU core count, 64 GB, macOS version (`env.json`)
+- Hardware: Mac mini, M5 Pro, CPU/GPU core count, 64 GB, macOS version, or DGX Spark, driver and CUDA version (`env.json`)
 - Software: llama.cpp commit, engine flags (`-fa on`, KV `q8_0`, context), MTP on/off
 - Models: exact repo + file for each (listed at the top of `summary.md`)
 - For SWE-bench: subset, step limit, thinking on/off, evaluator (local harness vs sb-cli)
+- For Terminal-Bench: Harbor version, agent, attempts, timeout multiplier, native vs published images, tasks at once

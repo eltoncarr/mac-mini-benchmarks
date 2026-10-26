@@ -7,8 +7,11 @@
 #                       #   EvalPlus, SWE-bench Verified Mini (50)
 #   ./run.sh full       # days: standard + SWE-bench Verified (500) + MBPP+
 #
-#   Individual suites: perf | server | coding | agent
-#   Machine-level (no GGUF model, run once): ref4167 | mlx
+#   Individual suites: perf | server | coding | agent | tbench [smoke|all]
+#   Machine-level (no GGUF model, run once): ref4167 | mlx (macOS) | tbench-check
+#
+# Runs on macOS (Apple silicon, Metal) and on Linux with an NVIDIA GPU (CUDA, e.g. DGX
+# Spark); the suites, models and settings are the same on both.
 #   RUN_DIR=results/<run> ./run.sh rescore      # re-score saved EvalPlus samples
 #   ./run.sh collect results/<run>               # rebuild summary.md
 #   ./run.sh compare results/<run> results/<run>  # side-by-side table -> results/compare-*.md
@@ -41,12 +44,12 @@ fi
 MODELS_SEL="$MODEL"
 
 STAMP="$(date +%Y%m%d-%H%M)"
-case "$SUITE" in  # these two don't use the GGUF model
-  ref4167|mlx) RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${SUITE}}" ;;
+case "$SUITE" in  # these don't use the GGUF model
+  ref4167|mlx|tbench-check) RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${SUITE}}" ;;
   *)           RUN="${RUN_DIR:-$ROOT/results/${STAMP}_${MODEL_NAME}_${MODEL}_${SUITE}}" ;;
 esac
 RUN="$(mkdir -p "$RUN" && cd "$RUN" && pwd)"
-mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,power,logs}
+mkdir -p "$RUN"/{llama_bench,benchy,server,mlx,evalplus,swebench,tbench,power,logs}
 SERVER_PID="" PROXY_PID="" MLX_PID="" POWER_PID=""
 
 # Always stop servers and write summary.md, also when a step dies part-way.
@@ -65,8 +68,8 @@ cleanup() {
   exit "$rc"
 }
 trap cleanup EXIT INT TERM
-caffeinate -dimsu -w $$ &   # keep the Mac awake for the whole run
-if [[ "${MEASURE_POWER:-0}" == 1 ]]; then
+keep_awake   # for the whole run
+if [[ "${MEASURE_POWER:-0}" == 1 ]] && is_mac; then
   log "MEASURE_POWER=1: powermetrics needs sudo for the whole run"
   sudo -v || die "sudo is required for MEASURE_POWER=1"
   while kill -0 $$ 2>/dev/null; do sudo -n true 2>/dev/null; sleep 60; done &   # keep sudo authorized
@@ -81,10 +84,10 @@ elif [[ "$USE_MTP" == 1 ]]; then
   warn "This llama.cpp build has no draft-mtp; all MTP runs are skipped"
 fi
 
-if [[ "$SUITE" == ref4167 || "$SUITE" == mlx ]]; then MODELS_SEL=""; fi
+if [[ "$SUITE" == ref4167 || "$SUITE" == mlx || "$SUITE" == tbench-check ]]; then MODELS_SEL=""; fi
 if (( ! REUSE_RUN )); then
 models_json="$(for m in $MODELS_SEL; do f="$(model_path "$m")"
-  jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(stat -f %z "$f")" \
+  jq -nc --arg l "$m" --arg r "$(model_repo "$m")" --arg f "$(basename "$f")" --arg b "$(file_bytes "$f")" \
     '{label:$l, repo:$r, file:$f, bytes:($b|tonumber)}'; done | jq -sc .)"
 python "$ROOT/bench/sysinfo.py" "$RUN/env.json" "$LLAMA_DIR" "$MODEL_NAME" \
   "$(jq -nc --arg s "$SUITE" --argjson models "$models_json" --arg kv "$KV_CACHE_TYPE" \
@@ -223,6 +226,7 @@ suite_server() {  # <depths> <full: 1 adds prefix-cache + concurrency runs>
 
 # ---- mlx: mlx_lm.benchmark + the same server suite against mlx_lm.server ---------
 suite_mlx() {
+  is_mac || { warn "MLX runs only on Apple silicon; skipping"; return; }
   local m="$MODELS/mlx/${MLX_REPO//\//__}"
   [[ -n "$MLX_REPO" && -d "$m" ]] || { warn "MLX model not downloaded; skipping"; return; }
   if command -v mlx_lm.benchmark >/dev/null; then
@@ -362,6 +366,80 @@ swe_evaluate() {
   esac
 }
 
+# ---- tbench: Terminal-Bench 2.0 with Terminus-2, through Harbor -------------------
+# The agent runs in the Harbor process on this machine and drives a tmux shell inside
+# each task's container; its model calls go through the telemetry proxy to llama-server.
+harbor_ready() {
+  [[ -x "$HARBOR_VENV/bin/harbor" ]] || die "Harbor not installed in $HARBOR_VENV; run ./bootstrap.sh"
+  docker info >/dev/null 2>&1 || die "Docker is not running (needed for Terminal-Bench)"
+  docker compose version >/dev/null 2>&1 || die "docker compose is missing (needed for Terminal-Bench); see README"
+}
+
+harbor_env_args() {  # flags shared by the model run and the oracle check
+  HARBOR_ARGS=(--dataset "$TB_DATASET" --n-attempts "$TB_ATTEMPTS" --timeout-multiplier "$TB_TIMEOUT_MULTIPLIER" --quiet)
+  if [[ "$TB_NATIVE_BUILD" == 1 ]]; then HARBOR_ARGS+=(--force-build); fi
+}
+
+suite_tbench() {  # <smoke|all>
+  local scope="$1" m g filt=()
+  harbor_ready
+  case "$scope" in
+    smoke) filt=(--include-task-name "*$TB_SMOKE_TASK") ;;
+    all)   for g in $TB_TASKS; do filt+=(--include-task-name "$g"); done ;;
+    *) die "unknown Terminal-Bench scope $scope (smoke|all)" ;;
+  esac
+  harbor_env_args
+  local np="$TB_CONCURRENT"
+  # Qwen3.8 recommended sampling, as for SWE-bench (see bench/swe_config.py)
+  local temp=1.0 call='{"top_p":0.95,"extra_body":{"top_k":20,"chat_template_kwargs":{"enable_thinking":true}}}'
+  if [[ $TB_THINKING != 1 ]]; then
+    temp=0.7 call='{"top_p":0.8,"presence_penalty":1.5,"extra_body":{"top_k":20,"chat_template_kwargs":{"enable_thinking":false}}}'
+  fi
+  for m in $MODELS_SEL; do
+    local tag="$scope${TB_TASKS:+_$(tr -c 'A-Za-z0-9_.-' _ <<<"$TB_TASKS")}"
+    [[ "$scope" == smoke ]] && tag=smoke
+    local d="$RUN/tbench/$m/$tag"
+    mkdir -p "$d"
+    start_quality_server "$m" tbench -c $((SERVER_CTX * np)) -np "$np" || { warn "skip Terminal-Bench for $m"; continue; }
+    python "$ROOT/bench/telemetry_proxy.py" --listen "$PROXY_PORT" --upstream "http://127.0.0.1:$SERVER_PORT" \
+      --log "$d/calls.jsonl" & PROXY_PID=$!
+    log "Terminal-Bench [$scope] with $m ($TB_AGENT, mtp=$SERVED_MTP, $np at a time, timeouts x$TB_TIMEOUT_MULTIPLIER)"
+    local t0=$SECONDS
+    OPENAI_API_KEY=local "$HARBOR_VENV/bin/harbor" run "${HARBOR_ARGS[@]}" --agent "$TB_AGENT" \
+      --model "openai/$MODEL_NAME-$m" \
+      --agent-kwarg "api_base=http://127.0.0.1:$PROXY_PORT/v1" \
+      --agent-kwarg "model_info={\"max_input_tokens\":$SERVER_CTX,\"max_output_tokens\":$AGENT_MAX_TOKENS,\"input_cost_per_token\":0,\"output_cost_per_token\":0}" \
+      --agent-kwarg "temperature=$temp" --agent-kwarg "llm_call_kwargs=$call" \
+      --n-concurrent "$np" --jobs-dir "$d" --job-name job ${filt[@]+"${filt[@]}"} </dev/null \
+      >"$RUN/logs/harbor-$m-$tag.log" 2>&1 || warn "harbor exited non-zero (logs/harbor-$m-$tag.log)"
+    local wall=$((SECONDS - t0))
+    stop_pid "$PROXY_PID"; PROXY_PID=""; stop_pid "$SERVER_PID"; SERVER_PID=""
+    jq -n --arg model "$m" --arg s "$scope" --arg ds "$TB_DATASET" --arg ag "$TB_AGENT" --arg tasks "$TB_TASKS" \
+       --argjson th "$TB_THINKING" --argjson w "$wall" --argjson np "$np" --argjson mtp "$SERVED_MTP" \
+       --argjson k "$TB_ATTEMPTS" --argjson tm "$TB_TIMEOUT_MULTIPLIER" --argjson nb "$TB_NATIVE_BUILD" \
+       --arg v "$("$HARBOR_VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("harbor"))' 2>/dev/null)" \
+       --arg arch "$(docker version -f '{{.Server.Arch}}' 2>/dev/null)" \
+       '{model:$model, scope:$s, dataset:$ds, agent:$ag, tasks:$tasks, thinking:($th==1), mtp:($mtp==1), wall_s:$w,
+         concurrent:$np, attempts:$k, timeout_multiplier:$tm, native_build:($nb==1), docker_arch:$arch, harbor:$v}' \
+       >"$d/meta.json"
+  done
+}
+
+# Run every task's reference solution (Harbor's oracle agent, no model) on this
+# machine's images: tasks that fail here fail for every model, which matters with
+# native arm64 builds. Run once per machine; summary.md lists the failures.
+suite_tbench_check() {
+  harbor_ready; harbor_env_args
+  local d="$RUN/tbench/oracle/all"
+  mkdir -p "$d"
+  log "Terminal-Bench oracle check ($TB_DATASET, native build=$TB_NATIVE_BUILD)"
+  "$HARBOR_VENV/bin/harbor" run "${HARBOR_ARGS[@]}" --agent oracle --n-concurrent 4 \
+    --jobs-dir "$d" --job-name job </dev/null >"$RUN/logs/harbor-oracle.log" 2>&1 \
+    || warn "harbor oracle run exited non-zero (logs/harbor-oracle.log)"
+  jq -n --arg ds "$TB_DATASET" --argjson nb "$TB_NATIVE_BUILD" --arg arch "$(docker version -f '{{.Server.Arch}}' 2>/dev/null)" \
+    '{model:"oracle", scope:"all", dataset:$ds, agent:"oracle", native_build:($nb==1), docker_arch:$arch}' >"$d/meta.json"
+}
+
 case "$SUITE" in
   quick)
     BENCH_REPS=3
@@ -384,6 +462,8 @@ case "$SUITE" in
   coding)  suite_coding "$EVALPLUS_DATASETS" ;;
   rescore) suite_rescore ;;
   agent)   suite_agent "${2:-$SWE_SUBSET}" ;;
-  *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|rescore|agent|collect|compare)" ;;
+  tbench)  suite_tbench "${2:-all}" ;;
+  tbench-check) suite_tbench_check ;;
+  *) die "unknown suite: $SUITE (quick|final|standard|full|perf|ref4167|server|mlx|coding|rescore|agent|tbench|tbench-check|collect|compare)" ;;
 esac
 

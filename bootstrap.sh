@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One-time setup for a clean Mac mini (Apple silicon, macOS).
+# One-time setup for a clean Mac mini (Apple silicon, macOS), or a Linux machine with
+# an NVIDIA GPU (e.g. DGX Spark / GB10: llama.cpp is built with CUDA instead of Metal).
 #
 #   ./bootstrap.sh                 # everything
 #   ./bootstrap.sh --no-docker     # skip Docker (SWE-bench needs it)
@@ -22,41 +23,73 @@ while (( $# )); do
     --no-download) WANT_DOWNLOAD=0 ;;
     --wired-limit) WANT_WIRED=1 ;;
     --update-llama) UPDATE_LLAMA=1 ;;
-    -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) die "unknown flag: $a" ;;
   esac
 done
 
 # ---- 0. Platform ------------------------------------------------------------
-[[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || die "This needs an Apple silicon Mac."
-log "Machine: $(sysctl -n machdep.cpu.brand_string), $(( $(sysctl -n hw.memsize) / 1073741824 )) GB, macOS $(sw_vers -productVersion)"
-free_gb=$(df -g "$ROOT" | awk 'NR==2{print $4}')
-if (( free_gb < 120 )); then warn "Only ${free_gb} GB free. Models + SWE-bench images need ~120 GB."; fi
+if is_mac; then
+  [[ "$(uname -m)" == arm64 ]] || die "On macOS this needs an Apple silicon Mac."
+  log "Machine: $(sysctl -n machdep.cpu.brand_string), $(( $(sysctl -n hw.memsize) / 1073741824 )) GB, macOS $(sw_vers -productVersion)"
+  free_gb=$(df -g "$ROOT" | awk 'NR==2{print $4}')
+else
+  [[ "$OS" == Linux ]] || die "Unsupported OS: $OS (macOS on Apple silicon or Linux with an NVIDIA GPU)"
+  command -v nvidia-smi >/dev/null || die "nvidia-smi not found: this needs an NVIDIA GPU and driver"
+  command -v nvcc >/dev/null || [[ -x /usr/local/cuda/bin/nvcc ]] || die "CUDA toolkit (nvcc) not found"
+  export PATH="/usr/local/cuda/bin:$PATH"
+  log "Machine: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1), $(uname -m), $(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1048576 )) GB, $(. /etc/os-release && echo "$PRETTY_NAME")"
+  free_gb=$(df -BG --output=avail "$ROOT" | tail -n1 | tr -dc 0-9)
+  WANT_MLX=0 WANT_WIRED=0
+fi
+if (( free_gb < 120 )); then warn "Only ${free_gb} GB free. Models + benchmark images need ~120 GB."; fi
 
-# ---- 1. Xcode command line tools -----------------------------------------------
-if ! xcode-select -p >/dev/null 2>&1; then
-  xcode-select --install || true
-  die "Finish the Xcode Command Line Tools install dialog, then re-run ./bootstrap.sh"
+# ---- 1-2. Build tools and CLI tools -------------------------------------------
+if is_mac; then
+  if ! xcode-select -p >/dev/null 2>&1; then
+    xcode-select --install || true
+    die "Finish the Xcode Command Line Tools install dialog, then re-run ./bootstrap.sh"
+  fi
+  if ! command -v brew >/dev/null; then
+    log "Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  fi
+  log "Installing brew packages"
+  brew install --quiet cmake ninja git jq uv
+else
+  missing=""
+  for t in cmake ninja git jq curl; do command -v "$t" >/dev/null || missing="$missing $t"; done
+  if [[ -n "$missing" ]]; then
+    log "Installing:$missing (apt, needs sudo)"
+    sudo apt-get update -qq && sudo apt-get install -y -qq cmake ninja-build git jq curl build-essential
+  fi
+  if ! command -v uv >/dev/null; then
+    log "Installing uv"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
 fi
 
-# ---- 2. Homebrew + CLI tools ----------------------------------------------------
-if ! command -v brew >/dev/null; then
-  log "Installing Homebrew"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-log "Installing brew packages"
-brew install --quiet cmake ninja git jq uv
-
-# ---- 3. Docker (for SWE-bench) ---------------------------------------------------
-if [[ $WANT_DOCKER == 1 ]]; then
+# ---- 3. Docker (SWE-bench, Terminal-Bench) -----------------------------------------
+if [[ $WANT_DOCKER == 1 ]] && ! is_mac; then
+  docker info >/dev/null 2>&1 || die "Docker is not running (or this user is not in the docker group)"
+  docker compose version >/dev/null 2>&1 || die "Docker Compose v2 plugin missing (apt install docker-compose-plugin)"
+  log "Docker $(docker version -f '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null) with compose"
+  if docker run --rm --platform linux/amd64 busybox:1.36 uname -m 2>/dev/null | grep -q x86_64; then
+    log "Docker runs x86_64 containers (SWE-bench images)"
+  else
+    warn "No x86_64 emulation; SWE-bench needs it (docker run --privileged --rm tonistiigi/binfmt --install amd64). Terminal-Bench builds native images and does not."
+  fi
+elif [[ $WANT_DOCKER == 1 ]]; then
   if docker info >/dev/null 2>&1; then
     log "Docker already running ($(docker version -f '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null))"
   else
     log "Installing Colima + Docker CLI (Rosetta enabled for x86_64 SWE-bench images)"
-    brew install --quiet colima docker docker-buildx
+    brew install --quiet colima docker docker-buildx docker-compose
     mkdir -p ~/.docker/cli-plugins
     ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
+    ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose
     colima start --vm-type vz --vz-rosetta --cpu 6 --memory 12 --disk 200
   fi
   if store="$(docker_broken_credstore)"; then
@@ -69,9 +102,10 @@ if [[ $WANT_DOCKER == 1 ]]; then
   else
     warn "Docker cannot run x86_64 containers yet; SWE-bench needs Rosetta/QEMU emulation (see README)"
   fi
+  docker compose version >/dev/null 2>&1 || warn "docker compose missing (Terminal-Bench needs it): brew install docker-compose"
 fi
 
-# ---- 4. llama.cpp (Metal) ------------------------------------------------------
+# ---- 4. llama.cpp (Metal on macOS, CUDA on Linux) -------------------------------
 mkdir -p "$VENDOR"
 if [[ ! -d "$LLAMA_DIR/.git" ]]; then
   log "Cloning llama.cpp"
@@ -90,8 +124,10 @@ else
   fi
 fi
 log "Building llama.cpp @ $(git -C "$LLAMA_DIR" rev-parse --short HEAD)"
+# Same flags on both platforms apart from the GPU backend (CUDA: arch of the installed GPU).
+if is_mac; then GPU_FLAGS=(-DGGML_METAL=ON); else GPU_FLAGS=(-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native); fi
 cmake -S "$LLAMA_DIR" -B "$LLAMA_DIR/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DGGML_METAL=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null
+  "${GPU_FLAGS[@]}" -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null
 cmake --build "$LLAMA_DIR/build" --target llama-bench llama-server llama-cli -j >/dev/null
 # llama-bench at the commit the #4167 thread asks for (only for ./run.sh ref4167)
 if [[ "$RUN_4167_REFERENCE" == 1 && -n "$REF4167_LLAMA_REF" && ! -x "$VENDOR/llama.cpp-4167/build/bin/llama-bench" ]]; then
@@ -101,7 +137,7 @@ if [[ "$RUN_4167_REFERENCE" == 1 && -n "$REF4167_LLAMA_REF" && ! -x "$VENDOR/lla
   git -C "$LLAMA_DIR" worktree prune
   if git -C "$LLAMA_DIR" worktree add --quiet --detach "$VENDOR/llama.cpp-4167" "$REF4167_LLAMA_REF" \
      && cmake -S "$VENDOR/llama.cpp-4167" -B "$VENDOR/llama.cpp-4167/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-          -DGGML_METAL=ON -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null \
+          "${GPU_FLAGS[@]}" -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF >/dev/null \
      && cmake --build "$VENDOR/llama.cpp-4167/build" --target llama-bench -j >/dev/null; then
     log "#4167 llama-bench ready"
   else
@@ -119,6 +155,13 @@ fi
 log "Installing Python packages"
 VIRTUAL_ENV="$VENV" uv pip install --quiet -r "$ROOT/requirements.txt"
 activate_venv
+# Terminal-Bench's harness (Harbor) in its own venv: it pins its own LiteLLM.
+if [[ "$("$HARBOR_VENV/bin/python" -c 'import importlib.metadata as m; print(m.version("harbor"))' 2>/dev/null)" != "$HARBOR_VERSION" ]]; then
+  log "Installing Harbor $HARBOR_VERSION (Terminal-Bench harness)"
+  rm -rf "$HARBOR_VENV"
+  uv venv --quiet --python 3.12 "$HARBOR_VENV"
+  VIRTUAL_ENV="$HARBOR_VENV" uv pip install --quiet "harbor==$HARBOR_VERSION" || warn "Harbor install failed; Terminal-Bench suites will not run"
+fi
 
 # ---- 6. Models ----------------------------------------------------------------
 if [[ $WANT_DOWNLOAD == 1 ]]; then
@@ -151,7 +194,7 @@ if [[ $WANT_DOWNLOAD == 1 ]]; then
   fi
 fi
 
-# ---- 7. GPU memory limit -------------------------------------------------------
+# ---- 7. GPU memory limit (macOS) ----------------------------------------------
 # macOS lets the GPU wire ~75% of RAM by default (~48 GB on 64 GB). Q8_0 plus a
 # 128k KV cache can exceed that.
 if [[ $WANT_WIRED == 1 ]]; then

@@ -52,8 +52,9 @@ def llama_bench(run, S, md):
                    "|---|---|---|---|---|---|---|---|---|---|", row, ""]
 
 
-# Memory bandwidth (GB/s) by chip, from Apple's specs; used only for the #4167 row.
-CHIP_BW = {"Apple M5 Pro": 307, "Apple M5 Max": 614, "Apple M5": 153, "Apple M4 Pro": 273, "Apple M4 Max": 546}
+# Memory bandwidth (GB/s) by chip, from Apple's and NVIDIA's specs; used only for the #4167 row.
+CHIP_BW = {"Apple M5 Pro": 307, "Apple M5 Max": 614, "Apple M5": 153, "Apple M4 Pro": 273, "Apple M4 Max": 546,
+           "NVIDIA GB10": 273}
 
 
 def ref4167_row(raw, env):
@@ -338,6 +339,108 @@ def swebench_table(res):
     return md
 
 
+def tbench_one(d):
+    """One Harbor job: results/<run>/tbench/<model>/<scope>/job/<trial>/result.json."""
+    trials = []
+    for f in sorted((d / "job").glob("*/result.json")):
+        r = load(f) or {}
+        if "task_name" not in r:
+            continue
+        rewards = (r.get("verifier_result") or {}).get("rewards") or {}
+        reward = rewards.get("reward", next(iter(rewards.values()), None))
+        exc = (r.get("exception_info") or {}).get("exception_type")
+        ex = r.get("agent_execution") or {}
+        ar = r.get("agent_result") or {}
+        trials.append({"task": r["task_name"].split("/")[-1], "reward": reward, "exception": exc,
+                       "agent_s": seconds(ex.get("started_at"), ex.get("finished_at")),
+                       "input_tokens": ar.get("n_input_tokens"), "output_tokens": ar.get("n_output_tokens")})
+    out = dict(load(d / "meta.json") or {})
+    out["trials"] = len(trials)
+    out["passed"] = sum(1 for t in trials if (t["reward"] or 0) >= 1)
+    out["score"] = statistics.mean([t["reward"] or 0 for t in trials]) if trials else None
+    ends = {}
+    for t in trials:
+        k = "passed" if (t["reward"] or 0) >= 1 else (t["exception"] or "failed tests")
+        ends[k] = ends.get(k, 0) + 1
+    out["ended_by"] = ends
+    out["agent_hours"] = sum(t["agent_s"] or 0 for t in trials) / 3600
+    tasks = {}
+    for t in trials:
+        tasks.setdefault(t["task"], []).append(t)
+    out["tasks"] = {k: {"passed": sum(1 for t in v if (t["reward"] or 0) >= 1), "trials": len(v),
+                        "ended": sorted({t["exception"] or ("passed" if (t["reward"] or 0) >= 1 else "failed")
+                                         for t in v})} for k, v in sorted(tasks.items())}
+    if (d / "calls.jsonl").exists():
+        out["telemetry"] = agent_telemetry(d / "calls.jsonl")
+    return out
+
+
+def seconds(a, b):
+    from datetime import datetime
+    try:
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds()
+    except (TypeError, ValueError):
+        return None
+
+
+def tbench(run, S, md):
+    root = run / "tbench"
+    metas = sorted(root.rglob("meta.json")) if root.exists() else []
+    if not metas:
+        return
+    res = {}
+    for meta in metas:
+        o = tbench_one(meta.parent)
+        o.setdefault("model", meta.parent.relative_to(root).parts[0])
+        res[str(meta.parent.relative_to(root))] = o
+    S["tbench"] = res
+    md += ["## Agentic coding: Terminal-Bench 2.0 (Harbor)", ""] + tbench_table(res)
+    for key, o in res.items():
+        t = o.get("telemetry")
+        if not t:
+            continue
+        md += ["", f"**{key}**: speed during the agent run by context size; prefix-cache hit ratio "
+               f"{100 * t['prefix_cache_hit_ratio']:.0f}%"
+               + (f", MTP acceptance {100 * t['mtp_acceptance']:.0f}%" if t.get("mtp_acceptance") else ""),
+               "", "| context | calls | median TTFT s | new prompt tokens | prefill t/s | decode t/s |",
+               "|---|---:|---:|---:|---:|---:|"]
+        md += [f"| {b['range']} | {b['calls']} | {fmt(b['ttft_s'], 2)} | {fmt(b['new_prompt_tokens'], 0)} | "
+               f"{fmt(b['prompt_tps'])} | {fmt(b['predicted_tps'])} |" for b in t["buckets"]]
+    md.append("")
+
+
+def tbench_table(res):
+    md = ["| run | agent | tasks passed | score | ended by | MTP | thinking | timeouts | images | at once | wall h | model calls | max context |",
+          "|---|---|---:|---:|---|---|---|---:|---|---:|---:|---:|---:|"]
+    for key, o in res.items():
+        t = o.get("telemetry") or {}
+        ended = ", ".join(f"{k} ×{v}" for k, v in sorted(o.get("ended_by", {}).items(), key=lambda kv: -kv[1])) or "—"
+        images = (f"native {o.get('docker_arch') or ''}".strip() if o.get("native_build") else "published (x86_64)")
+        md.append(f"| {key} | {o.get('agent', '?')} | {o['passed']} / {o['trials']} | "
+                  f"{fmt(100 * o['score'] if o.get('score') is not None else None)}% | {ended} | "
+                  f"{'on' if o.get('mtp') else 'off'} | {'on' if o.get('thinking') else 'off'} | "
+                  f"×{o.get('timeout_multiplier', '?')} | {images} | {o.get('concurrent', '—')} | "
+                  f"{fmt((o.get('wall_s') or 0) / 3600, 2)} | {t.get('calls', '—')} | {t.get('max_context', '—')} |")
+    runs = [k for k in res]
+    tasks = sorted({task for o in res.values() for task in o.get("tasks", {})})
+    if tasks and len(tasks) <= 100:
+        def cell(v):
+            if not v:
+                return ""
+            mark = "✅" if v["passed"] == v["trials"] else ("❌" if not v["passed"] else f"{v['passed']}/{v['trials']}")
+            why = ", ".join(e for e in v["ended"] if e not in ("passed", "failed"))
+            return f"{mark} {why}".strip()
+        md += ["", "| task | " + " | ".join(runs) + " |", "|---|" + "---|" * len(runs)]
+        md += [f"| {task} | " + " | ".join(cell(res[r].get("tasks", {}).get(task)) for r in runs) + " |" for task in tasks]
+        md += ["", "✅ passed · ❌ failed (with the error type when the trial did not end normally, e.g. a timeout)."]
+    oracle = [o for o in res.values() if o.get("agent") == "oracle"]
+    for o in oracle:
+        bad = [k for k, v in o.get("tasks", {}).items() if v["passed"] < v["trials"]]
+        md += ["", f"Oracle check: the reference solutions pass {o['passed']} of {o['trials']} tasks on this machine's "
+               f"images; these fail for every model here: {', '.join(bad) or 'none'}."]
+    return md
+
+
 def evalplus(run, S, md):
     out = {}
     for f in sorted((run / "evalplus").glob("*/*.log")):
@@ -359,12 +462,16 @@ def power(run, S, md):
     for f in sorted((run / "power").glob("*.txt")):
         mw = [int(x) for x in re.findall(r"Combined Power \(CPU \+ GPU \+ ANE\):\s*(\d+)\s*mW", f.read_text())]
         gpu = [int(x) for x in re.findall(r"GPU Power:\s*(\d+)\s*mW", f.read_text())]
+        if not mw:  # Linux: nvidia-smi "timestamp, watts" lines (GPU board power only)
+            gpu = [float(x) * 1000 for x in re.findall(r"^[^,\n]+,\s*([\d.]+)\s*$", f.read_text(), re.M)]
+            mw = list(gpu)
         if mw:
             out[f.stem] = {"avg_w": statistics.mean(mw) / 1000, "max_w": max(mw) / 1000,
                            "gpu_avg_w": statistics.mean(gpu) / 1000 if gpu else None, "samples": len(mw)}
     S["power"] = out
     if out:
-        md += ["## Power (powermetrics, CPU+GPU+ANE)", "", "| phase | avg W | max W | GPU avg W |", "|---|---:|---:|---:|"]
+        src = "powermetrics, CPU+GPU+ANE" if (S.get("env") or {}).get("machine", {}).get("macos") else "nvidia-smi, GPU board"
+        md += [f"## Power ({src})", "", "| phase | avg W | max W | GPU avg W |", "|---|---:|---:|---:|"]
         md += [f"| {k} | {fmt(v['avg_w'])} | {fmt(v['max_w'])} | {fmt(v['gpu_avg_w'])} |" for k, v in out.items()]
         md.append("")
 
@@ -406,17 +513,21 @@ def comparison(S, env):
     spec = {m: (info.get(m) or {}).get("spec", "mtp") for m in models}
     sp = "MTP" if set(spec.values()) == {"mtp"} else "spec"
     md = ["## Comparison", "",
-          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | chat tg | chat tg {sp} | API tg | API tg {sp} | API TTFT ms | HumanEval+ | SWE-bench |",
-          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+          f"| model | size GiB | pp512 | tg128 | tg128 @ d{depth} | chat tg | chat tg {sp} | API tg | API tg {sp} | API TTFT ms | HumanEval+ | SWE-bench |"
+          + (" Terminal-Bench 2.0 |" if S.get("tbench") else ""),
+          "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|" + ("---:|" if S.get("tbench") else "")]
     for m in models:
         ev = (S.get("evalplus", {}).get(m) or {}).get("humaneval") or {}
         sws = [o for o in (S.get("swebench") or {}).values() if o.get("model") == m and o.get("resolved") is not None]
         swr = ", ".join(f"{o['resolved']}/{o['submitted']} {o.get('subset', '')}".strip() for o in sws) or "—"
+        tbs = [o for o in (S.get("tbench") or {}).values() if o.get("model") == m and o.get("trials")]
+        tbr = ", ".join(f"{o['passed']}/{o['trials']} {o.get('scope', '')}".strip() for o in tbs) or "—"
         md.append(f"| {m} | {fmt(sizes.get(m), 2)} | {fmt(lb(m, 'pp'))} | {fmt(lb(m, 'tg'))} | "
                   f"{fmt(lb(m, 'tg', depth)) if depth else '—'} | {fmt(chat_tps(srv[m]))} | "
                   f"{fmt(chat_tps(f'{srv[m]}-{spec[m]}'))} | {fmt(benchy_tg(srv[m]))} | "
                   f"{fmt(benchy_tg(f'{srv[m]}-{spec[m]}'))} | {fmt(ttft(srv[m]), 0)} | "
-                  f"{fmt(100 * ev['plus_pass@1']) + '%' if ev.get('plus_pass@1') is not None else '—'} | {swr} |")
+                  f"{fmt(100 * ev['plus_pass@1']) + '%' if ev.get('plus_pass@1') is not None else '—'} | {swr} |"
+                  + (f" {tbr} |" if S.get("tbench") else ""))
     md += ["", "pp/tg in tokens/s. llama-bench columns (pp512, tg128) are the engine alone. chat tg is the "
            "short-chat stream (256 tokens, thinking off) through llama-server; API columns are llama-benchy. "
            "MTP columns are empty when MTP did not run.", ""]
@@ -428,7 +539,7 @@ def comparison(S, env):
     return md + [""]
 
 
-SECTIONS = (llama_bench, vllm_bench, benchy, server, mlx, evalplus, swebench, power)
+SECTIONS = (llama_bench, vllm_bench, benchy, server, mlx, evalplus, swebench, tbench, power)
 
 
 def gather(run):
@@ -445,9 +556,10 @@ def gather(run):
 
 def header(env, run_name):
     m = env.get("machine", {})
-    return [f"# {env.get('model', 'Model')} on {m.get('model_name', 'Mac')} ({m.get('chip', '?')}, {m.get('memory_gb', '?')} GB)",
-            "", f"Run `{run_name}` · macOS {m.get('macos', '?')} · GPU cores {m.get('gpu_cores', '?')} · "
-            f"{engine(env)}", ""]
+    os_line = (f"macOS {m.get('macos', '?')} · GPU cores {m.get('gpu_cores', '?')}" if m.get("macos") or not m.get("os")
+               else f"{m.get('os')} · driver {m.get('gpu_driver', '?')} · CUDA {m.get('cuda', '?')}")
+    return [f"# {env.get('model', 'Model')} on {m.get('model_name') or 'Mac'} ({m.get('chip', '?')}, {m.get('memory_gb', '?')} GB)",
+            "", f"Run `{run_name}` · {os_line} · {engine(env)}", ""]
 
 
 def engine(env):
@@ -457,25 +569,66 @@ def engine(env):
     return f"llama.cpp `{env.get('llama_cpp_commit', '?')}`"
 
 
+def machine_name(env):
+    m = env.get("machine", {})
+    return m.get("model_name") or m.get("chip") or "?"
+
+
+def relabel(S, env, tag):
+    """Suffix every model label (and the result keys built from it) with ' @ tag'."""
+    for x in env.get("models", []):
+        old, srv = x["label"], x.get("server_label", f"llama.cpp-{x['label']}")
+        new = f"{old} @ {tag}"
+        x["label"], x["server_label"] = new, f"{srv} @ {tag}"
+        for rows in (S.get("llama_bench", []), S.get("vllm_perf", [])):
+            for r in rows:
+                if r.get("model") == old:
+                    r["model"] = new
+        for k in ("benchy", "server"):
+            S[k] = {(f"{srv} @ {tag}" + key[len(srv):] if key.startswith(srv) else key): v
+                    for key, v in (S.get(k) or {}).items()}
+        if old in (S.get("evalplus") or {}):
+            S["evalplus"][new] = S["evalplus"].pop(old)
+        for k in ("swebench", "tbench"):
+            for o in (S.get(k) or {}).values():
+                if o.get("model") == old:
+                    o["model"] = new
+
+
 def compare(out, runs):
-    merged, menv, notes = ({"llama_bench": [], "vllm_perf": [], "benchy": {}, "server": {}, "evalplus": {}, "swebench": {}},
+    merged, menv, notes = ({"llama_bench": [], "vllm_perf": [], "benchy": {}, "server": {}, "evalplus": {}, "swebench": {}, "tbench": {}},
                            {"models": []}, [])
-    for run in runs:
-        S, env, _ = gather(run)
+    gathered = [(run, *gather(run)[:2]) for run in runs]
+    # Same model on several machines (e.g. Mac mini vs DGX Spark): keep the rows apart.
+    multi = len({machine_name(env) for _, _, env in gathered}) > 1
+    for run, S, env in gathered:
+        if multi:
+            relabel(S, env, machine_name(env))
         merged["llama_bench"] += S.get("llama_bench", [])
         merged["vllm_perf"] += S.get("vllm_perf", [])
-        for k in ("benchy", "server", "evalplus", "swebench"):
+        for k in ("benchy", "server", "evalplus"):
             merged[k].update(S.get(k) or {})
+        mach = env.get("machine", {})
+        for k in ("swebench", "tbench"):  # keyed <model>/<subset>: add the machine
+            merged[k].update({(f"{key} @ {machine_name(env)}" if multi else key): v for key, v in (S.get(k) or {}).items()})
         menv["models"] += env.get("models", [])
         menv.setdefault("first", env)
         notes.append(f"| `{run.name}` | {', '.join(m['label'] for m in env.get('models', [])) or '—'} | "
-                     f"{env.get('suite', '?')} | {engine(env)} | {env.get('machine', {}).get('macos', '?')} |")
+                     f"{env.get('suite', '?')} | {engine(env)} | {mach.get('model_name') or mach.get('chip', '?')} | "
+                     f"{mach.get('macos') or mach.get('os', '?')} |")
     commits = {n.split('|')[4].strip() for n in notes}
     suites = {n.split('|')[3].strip() for n in notes}
-    md = header(menv["first"], ", ".join(r.name for r in runs)) + comparison(merged, menv)
+    md = header(menv["first"], ", ".join(r.name for r in runs))
+    if multi:  # the header describes one machine; name them all
+        names = list(dict.fromkeys(machine_name(env) for _, _, env in gathered))
+        md = [f"# {menv['first'].get('model', 'Model')}: {' vs '.join(names)}", "",
+              f"Runs {', '.join(f'`{r.name}`' for r in runs)}; machines and software in the Runs table below.", ""]
+    md += comparison(merged, menv)
     if merged["swebench"]:
         md += ["### SWE-bench", ""] + swebench_table(merged["swebench"]) + [""]
-    md += ["### Runs", "", "| run | model | suite | engine | macOS |", "|---|---|---|---|---|"] + notes + [""]
+    if merged["tbench"]:
+        md += ["### Terminal-Bench 2.0", ""] + tbench_table(merged["tbench"]) + [""]
+    md += ["### Runs", "", "| run | model | suite | engine | machine | OS |", "|---|---|---|---|---|---|"] + notes + [""]
     if len(commits) > 1:
         md += ["> Runs used different engines or llama.cpp commits; speed numbers may not be directly comparable.", ""]
     if len(suites) > 1:
