@@ -27,7 +27,7 @@ file_bytes() { if is_mac; then stat -f %z "$1"; else stat -c %s "$1"; fi; }
 # Keep the machine awake while the calling shell runs.
 keep_awake() {
   if is_mac; then caffeinate -dimsu -w $$ &
-  elif command -v systemd-inhibit >/dev/null; then
+  elif [[ -d /run/systemd/system ]] && command -v systemd-inhibit >/dev/null; then  # not in containers
     systemd-inhibit --what=sleep:idle --why="benchmark run" --mode=block \
       bash -c "while kill -0 $$ 2>/dev/null; do sleep 30; done" &
   fi
